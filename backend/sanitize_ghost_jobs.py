@@ -1,8 +1,14 @@
 from pymongo import MongoClient
 
 print("🔒 Connecting to Atlas to scrub overlapping jobs...")
-client = MongoClient("mongodb+srv://iarnabmaity:ibnxqdRUhUhkhZby@cluster0.0rbb3xt.mongodb.net/?appName=Cluster0")
-db = client["cets_database"]
+import os
+from dotenv import load_dotenv
+from pymongo import MongoClient # or AsyncIOMotorClient
+
+load_dotenv() # Loads variables from your .env file
+MONGO_URL = os.getenv("MONGO_URL")
+
+client = MongoClient(MONGO_URL) # Use the variable instead of the hardcoded stringdb = client["cets_database"]
 
 cursor = db.professionals.find({})
 fixed_count = 0

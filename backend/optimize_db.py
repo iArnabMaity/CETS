@@ -8,8 +8,7 @@ async def build_indexes():
     from pymongo import MongoClient # or AsyncIOMotorClient
     load_dotenv() # Loads variables from your .env file
     MONGO_URL = os.getenv("MONGO_URL")
-
-client = MongoClient(MONGO_URL) # Use the variable instead of the hardcoded stringdb = client["cets_database"]
+    client = MongoClient(MONGO_URL) # Use the variable instead of the hardcoded stringdb = client["cets_database"]
 
     # 1. Index the users collection for lightning-fast logins
     print("🔍 Optimizing 'users' collection (Logins)...")
