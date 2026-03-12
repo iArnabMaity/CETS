@@ -6,8 +6,14 @@ fake = Faker('en_IN')
 
 # --- 1. CONNECTION ---
 print("🔒 Connecting to Atlas for Final Master Sync...")
-client = MongoClient("mongodb+srv://iarnabmaity:ibnxqdRUhUhkhZby@cluster0.0rbb3xt.mongodb.net/?appName=Cluster0")
-db = client["cets_database"]
+import os
+from dotenv import load_dotenv
+from pymongo import MongoClient # or AsyncIOMotorClient
+
+load_dotenv() # Loads variables from your .env file
+MONGO_URL = os.getenv("MONGO_URL")
+
+client = MongoClient(MONGO_URL) # Use the variable instead of the hardcoded stringdb = client["cets_database"]
 
 BATCH_SIZE = 1000
 total_records = db.professionals.count_documents({})
