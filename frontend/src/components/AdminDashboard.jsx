@@ -16,6 +16,9 @@ export default function AdminDashboard({ user, setUser }) {
     const [activeSessions, setActiveSessions] = useState({ total: 0, employees: 0, employers: 0, sessions: [] });
     const [attackLedger, setAttackLedger] = useState({ logs: [], total_records: 0 });
     const [userRegistry, setUserRegistry] = useState([]);
+    const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
+    const [passwordStatus, setPasswordStatus] = useState({ msg: '', type: '' });
+    const [passwordStrength, setPasswordStrength] = useState(0);
 
     // Auto-Polling Engine for Live Threat Logs
     useEffect(() => {
@@ -49,6 +52,40 @@ export default function AdminDashboard({ user, setUser }) {
         return () => clearInterval(interval);
     }, [isLive]);
 
+    // Password Strength Calc logic
+    useEffect(() => {
+        const calculateStrength = (pwd) => {
+            let strength = 0;
+            if (pwd.length >= 8) strength += 25;
+            if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) strength += 25;
+            if (/\d/.test(pwd)) strength += 25;
+            if (/[^A-Za-z0-9]/.test(pwd)) strength += 25;
+            setPasswordStrength(strength);
+        };
+        calculateStrength(passwordForm.new);
+    }, [passwordForm.new]);
+
+    const handlePasswordChange = async (e) => {
+        e.preventDefault();
+        if (passwordForm.new !== passwordForm.confirm) {
+            setPasswordStatus({ msg: "Passwords do not match.", type: "error" });
+            return;
+        }
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post(`${API_BASE}/api/admin/change_password`, {
+                current_password: passwordForm.current,
+                new_password: passwordForm.new
+            }, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            setPasswordStatus({ msg: "Passkey updated successfully!", type: "success" });
+            setPasswordForm({ current: '', new: '', confirm: '' });
+        } catch (err) {
+            setPasswordStatus({ msg: err.response?.data?.detail || "Update failed.", type: "error" });
+        }
+    };
+
     // Derived Analytics for the KPI Cards
     const totalBlocked = threatLogs.length;
     const volumetricCount = threatLogs.filter(log => log.type === 'Volumetric Attack').length;
@@ -78,6 +115,7 @@ export default function AdminDashboard({ user, setUser }) {
                             { id: 'traffic', icon: LineChart, label: 'Real-Time Traffic' },
                             { id: 'users', icon: Users, label: 'User Registry' },
                             { id: 'network', icon: Server, label: 'Network Health' },
+                            { id: 'security', icon: Lock, label: 'Security Settings' },
                         ].map((item) => (
                             <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center p-3 rounded-xl font-medium transition-all duration-200 ${activeTab === item.id ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-[inset_0_0_15px_rgba(244,63,94,0.1)]' : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-300'}`}>
                                 <item.icon className={`mr-3 w-5 h-5 ${activeTab === item.id ? 'text-rose-400' : 'text-slate-600'}`} /> {item.label}
@@ -363,6 +401,53 @@ export default function AdminDashboard({ user, setUser }) {
                                             <div className="flex justify-between"><span className="text-slate-400">Confidence Threshold</span><span className="text-slate-200 font-mono">98.5%</span></div>
                                         </div>
                                     </div>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* TAB 5: SECURITY SETTINGS */}
+                        {activeTab === 'security' && (
+                            <motion.div key="security" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-2xl">
+                                <div className="glass-card p-10 relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-8 opacity-5">
+                                        <ShieldAlert className="w-24 h-24 text-rose-500" />
+                                    </div>
+                                    <h2 className="text-2xl font-bold mb-2 flex items-center">
+                                        <Lock className="mr-3 text-rose-500" /> Update Admin Passkey
+                                    </h2>
+                                    <p className="text-slate-400 text-sm mb-8">Change your root access credentials. Follow enterprise security standards.</p>
+
+                                    {passwordStatus.msg && (
+                                        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className={`p-4 rounded-xl mb-6 flex items-center border ${passwordStatus.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                                            {passwordStatus.type === 'success' ? <CheckCircle2 className="w-5 h-5 mr-3" /> : <AlertTriangle className="w-5 h-5 mr-3" />}
+                                            <span className="text-sm font-bold">{passwordStatus.msg}</span>
+                                        </motion.div>
+                                    )}
+
+                                    <form onSubmit={handlePasswordChange} className="space-y-6">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Current Passkey</label>
+                                            <input required type="password" value={passwordForm.current} onChange={e => setPasswordForm({ ...passwordForm, current: e.target.value })} className="w-full bg-black/40 border border-white/[0.06] rounded-xl p-4 outline-none focus:border-rose-500/50 transition-all font-mono text-rose-400" />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">New Passkey</label>
+                                            <input required type="password" value={passwordForm.new} onChange={e => setPasswordForm({ ...passwordForm, new: e.target.value })} className="w-full bg-black/40 border border-white/[0.06] rounded-xl p-4 outline-none focus:border-rose-500/50 transition-all font-mono text-rose-400" />
+                                            <div className="h-1 w-full bg-slate-800 rounded-full mt-2 overflow-hidden">
+                                                <motion.div initial={{ width: 0 }} animate={{ width: `${passwordStrength}%` }} className={`h-full ${passwordStrength <= 25 ? 'bg-rose-500' : passwordStrength <= 50 ? 'bg-amber-500' : passwordStrength <= 75 ? 'bg-indigo-500' : 'bg-emerald-500'}`} />
+                                            </div>
+                                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider text-right">Complexity Score: {passwordStrength}%</p>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Confirm New Passkey</label>
+                                            <input required type="password" value={passwordForm.confirm} onChange={e => setPasswordForm({ ...passwordForm, confirm: e.target.value })} className="w-full bg-black/40 border border-white/[0.06] rounded-xl p-4 outline-none focus:border-rose-500/50 transition-all font-mono text-rose-400" />
+                                        </div>
+
+                                        <button type="submit" className="w-full py-4 bg-gradient-to-r from-rose-600 to-red-600 text-white font-black rounded-xl uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(244,63,94,0.3)] hover:shadow-[0_0_30px_rgba(244,63,94,0.5)] transition-all flex items-center justify-center">
+                                            <ShieldAlert className="w-5 h-5 mr-3" /> Commit Changes
+                                        </button>
+                                    </form>
                                 </div>
                             </motion.div>
                         )}

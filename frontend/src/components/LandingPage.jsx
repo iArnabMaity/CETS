@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Activity, Users, ArrowRight, ChevronUp, Lock, Hexagon, Database, X, Shield, CheckCircle, Zap, Sun, Moon } from 'lucide-react';
+import { Activity, Users, ArrowRight, ChevronUp, Lock, Hexagon, Database, X, Shield, CheckCircle, Zap, Sun, Moon, User, Eye, EyeOff } from 'lucide-react';
 import ParticleBackground from './ParticleBackground';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000';
@@ -20,6 +20,22 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
   const [adminPassword, setAdminPassword] = useState('');
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState('');
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [adminCaptcha, setAdminCaptcha] = useState({ q: '', a: 0 });
+  const [adminCaptchaInput, setAdminCaptchaInput] = useState('');
+
+  // Generate a simple math captcha for admin login
+  const generateAdminCaptcha = () => {
+    const num1 = Math.floor(Math.random() * 10) + 1;
+    const num2 = Math.floor(Math.random() * 10) + 1;
+    setAdminCaptcha({ q: `${num1} + ${num2}`, a: num1 + num2 });
+    setAdminCaptchaInput('');
+  };
+
+  const handleShowAdminModal = () => {
+    generateAdminCaptcha();
+    setShowAdminModal(true);
+  };
 
   const handleAdminLogin = async (e) => {
     e.preventDefault();
@@ -144,19 +160,39 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
             <h2 className="text-3xl md:text-5xl font-black mb-4 text-white">Enterprise-Grade <span className="text-purple-500">Features</span></h2>
             <p className="max-w-2xl mx-auto text-lg text-slate-400">Designed for scale, built for security. Everything you need to manage your organization's talent truth.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <motion.div 
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={{
+              hidden: { opacity: 0 },
+              visible: {
+                opacity: 1,
+                transition: { staggerChildren: 0.2 }
+              }
+            }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-8"
+          >
             {[
               { icon: Zap, title: "Instant Verification", desc: "Validate an entire career topology in milliseconds via our high-throughput read nodes." },
               { icon: Lock, title: "Tamper-Proof Records", desc: "Once a record is committed to the CETS ledger, it cannot be altered or deleted by malicious actors." },
               { icon: Database, title: "API Integration", desc: "Seamlessly integrate our verification endpoints into your existing HR systems (Workday, SAP, etc)." }
             ].map((f, i) => (
-              <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} key={i} className="p-8 rounded-3xl border bg-slate-950/50 border-slate-800 hover:bg-slate-900 transition-colors">
+              <motion.div 
+                variants={{
+                  hidden: { opacity: 0, y: 30 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+                }}
+                whileHover={{ y: -10, transition: { duration: 0.2 } }}
+                key={i} 
+                className="p-8 rounded-3xl border bg-slate-950/50 border-slate-800 hover:bg-slate-900 transition-colors shadow-lg hover:shadow-indigo-500/10 cursor-default"
+              >
                 <f.icon className="w-10 h-10 mb-6 text-purple-400" />
                 <h3 className="text-xl font-bold mb-3 text-white">{f.title}</h3>
                 <p className="leading-relaxed text-slate-400">{f.desc}</p>
               </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
@@ -203,8 +239,27 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
             <h2 className="text-3xl md:text-5xl font-black mb-4 text-white">Who Can <span className="text-emerald-500">Join?</span></h2>
             <p className="max-w-2xl mx-auto text-lg text-slate-400">CETS is designed for two core pillars of the workforce ecosystem.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="p-8 rounded-3xl border bg-indigo-500/[0.06] border-indigo-500/20 hover:border-indigo-400/40 transition-all">
+          <motion.div 
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={{
+              hidden: { opacity: 0 },
+              visible: {
+                opacity: 1,
+                transition: { staggerChildren: 0.3 }
+              }
+            }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto"
+          >
+            <motion.div 
+              variants={{
+                hidden: { opacity: 0, x: -30 },
+                visible: { opacity: 1, x: 0, transition: { duration: 0.8 } }
+              }}
+              whileHover={{ scale: 1.02 }}
+              className="p-8 rounded-3xl border bg-indigo-500/[0.06] border-indigo-500/20 hover:border-indigo-400/40 transition-all shadow-xl"
+            >
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6 bg-indigo-500/10">
                 <Users className="w-7 h-7 text-indigo-400" />
               </div>
@@ -216,7 +271,14 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
                 ))}
               </ul>
             </motion.div>
-            <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="p-8 rounded-3xl border bg-amber-500/[0.06] border-amber-500/20 hover:border-amber-400/40 transition-all">
+            <motion.div 
+              variants={{
+                hidden: { opacity: 0, x: 30 },
+                visible: { opacity: 1, x: 0, transition: { duration: 0.8 } }
+              }}
+              whileHover={{ scale: 1.02 }}
+              className="p-8 rounded-3xl border bg-amber-500/[0.06] border-amber-500/20 hover:border-amber-400/40 transition-all shadow-xl"
+            >
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6 bg-amber-500/10">
                 <Activity className="w-7 h-7 text-amber-400" />
               </div>
@@ -228,7 +290,7 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
                 ))}
               </ul>
             </motion.div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
@@ -238,7 +300,16 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
           <h2 className="text-3xl md:text-5xl font-black mb-4 text-white">Why <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-500">Join CETS?</span></h2>
           <p className="max-w-2xl mx-auto text-lg text-slate-400">We're not just another HR platform. Here's what sets us apart.</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <motion.div 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={{
+            hidden: { opacity: 0 },
+            visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+          }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
           {[
             { emoji: '🔐', title: 'AI Cognitive Firewall', desc: 'Real-time behavioral analysis — latency profiling, device fingerprinting, keystroke dynamics — to stop bots and intruders.' },
             { emoji: '⛓️', title: 'Blockchain Integrity', desc: 'Every employment record is SHA-256 hashed and chained. Tampering is computationally impossible.' },
@@ -247,13 +318,21 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
             { emoji: '📄', title: 'One-Click Resume Export', desc: 'Generate a clean, verified PDF resume from your immutable blockchain profile in seconds.' },
             { emoji: '🌍', title: 'MCP Protocol Ready', desc: 'Model Context Protocol server ready for AI assistants to securely query your career data via standardized APIs.' },
           ].map((item, i) => (
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }} key={i} className="p-6 rounded-2xl border transition-all hover:-translate-y-1 bg-slate-900/40 border-slate-800 hover:border-indigo-500/30">
+            <motion.div 
+              variants={{
+                hidden: { opacity: 0, scale: 0.9 },
+                visible: { opacity: 1, scale: 1, transition: { duration: 0.5 } }
+              }}
+              whileHover={{ y: -5, borderColor: "rgba(99, 102, 241, 0.5)", transition: { duration: 0.2 } }}
+              key={i} 
+              className="p-6 rounded-2xl border transition-all bg-slate-900/40 border-slate-800"
+            >
               <span className="text-3xl mb-4 block">{item.emoji}</span>
               <h3 className="text-lg font-bold mb-2 text-white">{item.title}</h3>
               <p className="text-sm leading-relaxed text-slate-400">{item.desc}</p>
             </motion.div>
           ))}
-        </div>
+        </motion.div>
       </section>
 
       {/* --- HOW IT WORKS SECTION --- */}
@@ -263,14 +342,30 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
             <h2 className="text-3xl md:text-5xl font-black mb-4 text-white">How It <span className="text-cyan-500">Works</span></h2>
             <p className="max-w-2xl mx-auto text-lg text-slate-400">Getting started is simple. Four steps to a verifiable career identity.</p>
           </div>
-          <div className="space-y-8">
+          <motion.div 
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={{
+              hidden: { opacity: 0 },
+              visible: { opacity: 1, transition: { staggerChildren: 0.2 } }
+            }}
+            className="space-y-8"
+          >
             {[
               { step: '01', title: 'Register & Authenticate', desc: 'Create your account as an Employee or Employer. Our AI Cognitive Firewall analyzes your request in real-time to ensure security.', color: 'indigo' },
               { step: '02', title: 'Build Your Profile', desc: 'Add your skills, experience, education, and languages. Each entry is hashed and added to the immutable blockchain ledger.', color: 'purple' },
               { step: '03', title: 'Get Verified', desc: 'Employers verify your credentials directly from their dashboard. A SHA-256 cryptographic hash confirms every detail.', color: 'cyan' },
               { step: '04', title: 'Stay Protected', desc: 'Our continuous monitoring system tracks login patterns, device fingerprints, and behavioral anomalies 24/7.', color: 'emerald' },
             ].map((item, i) => (
-              <motion.div initial={{ opacity: 0, x: i % 2 === 0 ? -30 : 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} key={i} className="flex items-start gap-6 p-6 rounded-2xl border transition-all bg-slate-950/50 border-slate-800 hover:border-slate-700">
+              <motion.div 
+                variants={{
+                  hidden: { opacity: 0, x: i % 2 === 0 ? -40 : 40 },
+                  visible: { opacity: 1, x: 0, transition: { duration: 0.8, ease: "easeOut" } }
+                }}
+                key={i} 
+                className="flex items-start gap-6 p-6 rounded-2xl border transition-all bg-slate-950/50 border-slate-800 hover:border-slate-700"
+              >
                 <div className={`flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center font-black text-lg bg-${item.color}-500/10 text-${item.color}-400`}>
                   {item.step}
                 </div>
@@ -280,7 +375,7 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
                 </div>
               </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
@@ -321,7 +416,7 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
             <button onClick={() => setShowPrivacy(true)} className="transition-colors hover:text-indigo-400">Privacy Policy</button>
             <button onClick={() => setShowTerms(true)} className="transition-colors hover:text-indigo-400">Terms of Service</button>
             {/* Admin Access Trigger */}
-            <button onClick={() => setShowAdminModal(true)} className="flex items-center transition-colors group text-slate-600 hover:text-rose-400">
+            <button onClick={handleShowAdminModal} className="flex items-center transition-colors group text-slate-600 hover:text-rose-400">
               <Lock className="w-3 h-3 mr-1 group-hover:animate-pulse" /> System Access
             </button>
           </div>
@@ -345,9 +440,45 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
                 {adminError && (
                   <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded text-rose-400 text-xs font-mono">{adminError}</div>
                 )}
-                <input required type="text" placeholder="Admin ID (Email)" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} className="w-full p-3 bg-black border border-slate-800 rounded text-rose-500 font-mono text-sm outline-none focus:border-rose-500 placeholder-slate-700" />
-                <input required type="password" placeholder="Passkey" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} className="w-full p-3 bg-black border border-slate-800 rounded text-rose-500 font-mono text-sm outline-none focus:border-rose-500 placeholder-slate-700" />
-                <button type="submit" disabled={adminLoading} className="w-full py-3 bg-rose-600 hover:bg-rose-500 text-white font-mono font-bold rounded uppercase tracking-widest text-sm shadow-[0_0_15px_rgba(244,63,94,0.4)] disabled:opacity-50">
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-700 group-focus-within:text-rose-500">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <input required type="text" placeholder="Admin ID (Email)" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} className="w-full p-3 pl-10 bg-black border border-slate-800 rounded text-rose-500 font-mono text-sm outline-none focus:border-rose-500 placeholder-slate-800" />
+                </div>
+
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-700 group-focus-within:text-rose-500">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <input required type={showAdminPassword ? "text" : "password"} placeholder="Passkey" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} className="w-full p-3 pl-10 pr-10 bg-black border border-slate-800 rounded text-rose-500 font-mono text-sm outline-none focus:border-rose-500 placeholder-slate-800" />
+                  <button type="button" onClick={() => setShowAdminPassword(!showAdminPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-700 hover:text-rose-500">
+                    {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                {/* Math Captcha */}
+                <div className="flex items-center space-x-3 bg-black/50 p-3 rounded border border-slate-800">
+                  <div className="text-xs font-mono text-slate-500 shrink-0">Security Code: <span className="text-rose-500">{adminCaptcha.q} =</span></div>
+                  <input 
+                    type="number" 
+                    value={adminCaptchaInput} 
+                    onChange={e => setAdminCaptchaInput(e.target.value)} 
+                    placeholder="?"
+                    className="w-16 bg-transparent border-b border-slate-700 text-rose-500 outline-none focus:border-rose-500 px-1 text-center font-mono"
+                  />
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] font-mono">
+                  <button type="button" onClick={() => alert("ADMIN RECOVERY PROTOCOL: Please use your physical hardware key or contact technical lead for emergency reset.")} className="text-slate-600 hover:text-rose-400 decoration-dotted underline">Forgot Passkey?</button>
+                  <span className="text-slate-800">CETS V2.Secure</span>
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={adminLoading || parseInt(adminCaptchaInput) !== adminCaptcha.a} 
+                  className="w-full py-3 bg-rose-600 hover:bg-rose-500 text-white font-mono font-bold rounded uppercase tracking-widest text-sm shadow-[0_0_15px_rgba(244,63,94,0.4)] disabled:opacity-30 disabled:shadow-none"
+                >
                   {adminLoading ? 'VERIFYING...' : 'INITIATE OVERRIDE'}
                 </button>
               </form>

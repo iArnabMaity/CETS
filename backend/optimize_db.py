@@ -1,14 +1,19 @@
 import asyncio
+import os
+from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 
 async def build_indexes():
     print("⚡ Connecting to Atlas to build high-speed indexes...")
-    import os
-    from dotenv import load_dotenv
-    from pymongo import MongoClient # or AsyncIOMotorClient
-    load_dotenv() # Loads variables from your .env file
+    load_dotenv()  # Loads variables from your .env file
     MONGO_URL = os.getenv("MONGO_URL")
-    client = MongoClient(MONGO_URL) # Use the variable instead of the hardcoded stringdb = client["cets_database"]
+
+    if not MONGO_URL:
+        print("❌ Error: MONGO_URL not found in .env file.")
+        return
+
+    client = AsyncIOMotorClient(MONGO_URL)
+    db = client["cets_database"]
 
     # 1. Index the users collection for lightning-fast logins
     print("🔍 Optimizing 'users' collection (Logins)...")

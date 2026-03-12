@@ -94,7 +94,7 @@ export default function App() {
   if (currentView === 'landing') {
     return <LandingPage
       onNavigateToAuth={() => setCurrentView('auth')}
-      setUser={setUser}
+      setUser={handleSetUser}
       darkMode={true}
     />;
   }
