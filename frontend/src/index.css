@@ -1,0 +1,385 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================================= */
+/* CETS GLASSMORPHISM DESIGN SYSTEM                          */
+/* Premium design tokens, glass surfaces, and animations     */
+/* ========================================================= */
+
+:root {
+  /* --- Color Palette --- */
+  --cets-primary: 99, 102, 241;
+  /* Indigo-500 */
+  --cets-primary-light: 129, 140, 248;
+  /* Indigo-400 */
+  --cets-accent: 168, 85, 247;
+  /* Purple-500 */
+  --cets-success: 16, 185, 129;
+  /* Emerald-500 */
+  --cets-danger: 244, 63, 94;
+  /* Rose-500 */
+  --cets-warning: 250, 204, 21;
+  /* Yellow-400 */
+  --cets-cyan: 6, 182, 212;
+  /* Cyan-500 */
+
+  /* --- Glass Surface --- */
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: 20px;
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+
+  /* --- Typography --- */
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- Global Reset Enhancements --- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #020617;
+  color: #e2e8f0;
+  overflow-x: hidden;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 100px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+}
+
+/* ========================================================= */
+/* GLASSMORPHISM UTILITY CLASSES                             */
+/* ========================================================= */
+
+@layer components {
+
+  /* --- Primary Glass Card --- */
+  .glass-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border-radius: 1.5rem;
+    box-shadow: var(--glass-shadow);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-card:hover {
+    border-color: rgba(99, 102, 241, 0.2);
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15), var(--glass-shadow);
+  }
+
+  /* --- Sidebar Glass --- */
+  .glass-sidebar {
+    background: rgba(2, 6, 23, 0.85);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  /* --- Header Glass --- */
+  .glass-header {
+    background: rgba(2, 6, 23, 0.6);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* --- Input Glass --- */
+  .glass-input {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    color: #e2e8f0;
+    outline: none;
+    transition: all 0.3s ease;
+  }
+
+  .glass-input:focus {
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  }
+
+  .glass-input::placeholder {
+    color: rgba(148, 163, 184, 0.6);
+  }
+
+  /* --- Premium Button --- */
+  .btn-premium {
+    background: linear-gradient(135deg, rgb(var(--cets-primary)), rgb(var(--cets-accent)));
+    color: white;
+    font-weight: 700;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-premium:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+  }
+
+  .btn-premium:active {
+    transform: scale(0.97);
+  }
+
+  .btn-premium::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    transition: left 0.5s;
+  }
+
+  .btn-premium:hover::before {
+    left: 100%;
+  }
+
+  /* --- Tag Pill --- */
+  .tag-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(99, 102, 241, 0.1);
+    color: rgb(var(--cets-primary-light));
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    transition: all 0.2s;
+  }
+
+  .tag-pill:hover {
+    background: rgba(99, 102, 241, 0.2);
+  }
+
+  /* --- Stat Card --- */
+  .stat-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(var(--glass-blur));
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, rgb(var(--cets-primary)), rgb(var(--cets-accent)));
+    border-radius: 100px 100px 0 0;
+  }
+
+  /* --- Glow Effect for unread notifications --- */
+  .glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  /* --- Verified Badge --- */
+  .verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 100px;
+    font-size: 0.625rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(16, 185, 129, 0.1);
+    color: rgb(var(--cets-success));
+    border: 1px solid rgba(16, 185, 129, 0.2);
+  }
+
+  /* --- Blockchain Hash Display --- */
+  .hash-display {
+    font-family: 'Courier New', monospace;
+    font-size: 0.625rem;
+    color: rgba(6, 182, 212, 0.7);
+    word-break: break-all;
+    background: rgba(6, 182, 212, 0.05);
+    padding: 0.375rem 0.625rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(6, 182, 212, 0.1);
+  }
+
+  /* --- Progress Bar (Password strength) --- */
+  .strength-bar {
+    height: 0.375rem;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+  }
+
+  .strength-bar-fill {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.5s;
+  }
+}
+
+/* ========================================================= */
+/* ANIMATIONS                                                */
+/* ========================================================= */
+
+@keyframes glow-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(99, 102, 241, 0.3),
+      0 0 15px rgba(99, 102, 241, 0.1);
+  }
+
+  50% {
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.5),
+      0 0 30px rgba(99, 102, 241, 0.2);
+  }
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Animated Gradient Background --- */
+.animated-gradient-bg {
+  background: linear-gradient(-45deg, #020617, #0f172a, #0c0a1f, #020617);
+  background-size: 400% 400%;
+  animation: gradient-shift 15s ease infinite;
+}
+
+/* --- Floating Orbs (decorative background elements) --- */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.15;
+  pointer-events: none;
+  animation: float 8s ease-in-out infinite;
+}
+
+.orb-primary {
+  background: rgb(var(--cets-primary));
+}
+
+.orb-accent {
+  background: rgb(var(--cets-accent));
+  animation-delay: -4s;
+}
+
+.orb-cyan {
+  background: rgb(var(--cets-cyan));
+  animation-delay: -2s;
+}
+
+/* --- Sidebar Active Tab Indicator --- */
+.sidebar-tab-active {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.1));
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: rgb(var(--cets-primary-light));
+  box-shadow: inset 0 0 20px rgba(99, 102, 241, 0.08);
+}
+
+/* --- Timeline line for experience/education --- */
+.timeline-line {
+  position: relative;
+}
+
+.timeline-line::before {
+  content: '';
+  position: absolute;
+  left: 1.5rem;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, rgba(99, 102, 241, 0.3), transparent);
+}
+
+/* --- Selection Color --- */
+::selection {
+  background: rgba(99, 102, 241, 0.3);
+  color: #fff;
+}

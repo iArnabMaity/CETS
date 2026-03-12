@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  cets-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cets_frontend
+    ports:
+      - "3000:80" # Nginx serves on 80, map to host 3000
+    depends_on:
+      - cets-backend
+    environment:
+      # In a real deployment, override this with the actual backend host URL
+      - VITE_API_BASE=http://localhost:8000
+    restart: always
+
+  cets-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cets_backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Connect to the MongoDB container internally
+      - MONGO_URI=mongodb://cets-mongo:27017
+      - OPENCLAW_API_KEY=${OPENCLAW_API_KEY:-default_claw_key}
+      - MCP_TOKEN=${MCP_TOKEN:-default_mcp_token}
+    depends_on:
+      - cets-mongo
+    restart: always
+
+  cets-mongo:
+    image: mongo:latest
+    container_name: cets_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: always
+
+volumes:
+  mongo_data:
