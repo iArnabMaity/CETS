@@ -6,6 +6,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=flat&logo=mongodb&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat&logo=tailwindcss&logoColor=white)
 
 CETS (Career Empowerment & Tracking System) is a high-performance HR management ecosystem natively designed to bridge the trust gap in the modern era. It combines **Conceptual Blockchain-Verified credentials**, **Generative AI strictly built for candidate evaluation**, and a robust **Cognitive AI Firewall** to curate a secure, tamper-proof, and premium recruitment infrastructure.
 
