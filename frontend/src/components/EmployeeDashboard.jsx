@@ -1,17 +1,53 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import html2pdf from 'html2pdf.js';
-import { User, LogOut, ShieldCheck, Activity, Briefcase, Code, CheckCircle, Clock, Building2, Calendar, AlertOctagon, KeyRound, Lock, Plus, X, BookOpen, Info, Bell, GraduationCap, Hexagon, Loader2, Sparkles, Phone, Check, Save, Settings, ChevronDown, Download, MessageSquare, Send, EyeOff } from 'lucide-react';
+import AcademicFingerprint from './AcademicFingerprint';
+import Pagination from './common/Pagination';
+import { Building2, LogOut, Users, Briefcase, FileSignature, PieChart, Lock, ShieldCheck, Bell, Plus, X, Eye, CheckCircle, XCircle, Calendar, MapPin, IndianRupee, KeyRound, Minus, User, Phone, Check, Save, Moon, Sun, Settings, ChevronDown, MessageSquare, Send, Hexagon, Activity, Code, BookOpen, GraduationCap, Info, AlertOctagon, Download, Loader2, Sparkles, EyeOff, Smartphone, Tablet, Laptop, Monitor, Edit2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import PhoneInput from './PhoneInput';
+import Swal from 'sweetalert2';
+import AOS from 'aos';
+import 'aos/dist/aos.css';
+import {
+  Chart as ChartJS,
+  RadialLinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+  Tooltip,
+  Legend,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  BarElement
+} from 'chart.js';
+import { Radar, Doughnut } from 'react-chartjs-2';
+
+ChartJS.register(
+  RadialLinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+  Tooltip,
+  Legend,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  BarElement
+);
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000';
 
 export default function EmployeeDashboard({ user, setUser, onBack }) {
+  const authHeader = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
   const [activeTab, setActiveTab] = useState('profile');
+  const [fingerprintKey, setFingerprintKey] = useState(0); // Added for refresh
   const [analytics, setAnalytics] = useState({ average_tenure: 0, remarks: 'Loading...' });
-  const [noticeboardJobs, setNoticeboardJobs] = useState([]);
+  const [noticeboardJobs, setNoticeboardJobs] = useState({ jobs: [], total: 0, page: 1 });
   const [verifiedJobs, setVerifiedJobs] = useState([]);
   const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [trustScore, setTrustScore] = useState(0);
 
   // Registered Employers & Notifications
   const [registeredEmployers, setRegisteredEmployers] = useState([]);
@@ -22,21 +58,36 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
   const [cvData, setCvData] = useState({ about: "", skills: [], languages: [], hobbies: [], education: [], experience: [] });
   const [personalInfo, setPersonalInfo] = useState({ gender: '', countryCode: '+91', mobile: '', dob: '' });
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
+  const phoneInputRef = useRef(null);
+
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [aboutSavedStatus, setAboutSavedStatus] = useState('');
   const [isIncognito, setIsIncognito] = useState(false);
   const [isVerified, setIsVerified] = useState(true);
 
   // Profile Avatar Dropdown & Modal
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const profileDropdownRef = useRef(null);
+  const notificationDropdownRef = useRef(null);
+
+  const [editForm, setEditForm] = useState({ name: '', email: '', dob: '', phone: '', gender: '' });
+
+  // Approval Request System
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [approvalReason, setApprovalReason] = useState("");
+  const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState({});
 
   // Form States
   const [newItem, setNewItem] = useState({ type: '', value: '' });
   const [showExpForm, setShowExpForm] = useState(false);
   const [newExp, setNewExp] = useState({ role: '', firm: '', start: '', end: '', current: false });
   const [showEduForm, setShowEduForm] = useState(false);
-  const [newEdu, setNewEdu] = useState({ degree: '', institution: '', year: '', score: '' });
+  const [newEdu, setNewEdu] = useState({ degree: '', institution: '', start_year: '', end_year: '', year: '', score: '' });
+  const [isEditingEdu, setIsEditingEdu] = useState(false);
+  const [editEduId, setEditEduId] = useState(null);
 
   // Chat State (WebSockets)
   const [chatDrawerOpen, setChatDrawerOpen] = useState(false);
@@ -62,6 +113,10 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
           if (res.data) {
             const loadedExp = res.data.experience || [];
             setVerifiedJobs(loadedExp.filter(exp => exp.is_verified));
+            let standing = res.data.academic_standing || { grade: "N/A", description: "No Data", color: "#64748b" };
+            if (typeof standing === 'string') {
+              standing = { grade: "N/A", description: standing, color: "#64748b" };
+            }
             setCvData({
               about: res.data.about || "",
               skills: res.data.skills || [],
@@ -69,21 +124,71 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
               hobbies: res.data.hobbies || [],
               education: res.data.education || [],
               experience: loadedExp,
-              academic_standing: res.data.academic_standing || { grade: "N/A", description: "No Data", color: "#64748b" },
+              academic_standing: standing,
               verified_skills: res.data.verified_skills || []
             });
             setIsIncognito(res.data.incognito_mode || false);
             if (res.data.personal_info) {
-              setPersonalInfo(res.data.personal_info);
+              setPersonalInfo(prev => ({ ...prev, ...res.data.personal_info }));
+            } else {
+              setPersonalInfo(prev => ({
+                ...prev,
+                dob: res.data.dob || '',
+                gender: res.data.gender || '',
+                mobile: res.data.phone || '',
+                countryCode: '+91'
+              }));
+            }
+            if (!user.email && res.data.email) {
+              setUser(prev => ({ ...prev, email: res.data.email, name: res.data.name || prev.name }));
             }
           }
         }).catch(console.error);
 
-      axios.get(`${API_BASE}/api/hr/noticeboard`).then(res => setNoticeboardJobs(res.data.jobs)).catch(console.error);
-      axios.get(`${API_BASE}/api/hr/employers_list`).then(res => setRegisteredEmployers(res.data.employers)).catch(console.error);
+      axios.get(`${API_BASE}/api/hr/noticeboard?page=${noticeboardJobs.page || 1}&limit=30`).then(res => setNoticeboardJobs(prev => ({ ...res.data, page: res.data?.page || 1 }))).catch(console.error);
       axios.get(`${API_BASE}/api/notifications/${user.id}`).then(res => setNotifications(res.data.notifications || [])).catch(console.error);
+      axios.get(`${API_BASE}/api/evaluations/history/${user.id}`).then(res => {
+        const scores = res.data.evaluations.map(e => e.final_score);
+        if (scores.length > 0) {
+          const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+          setTrustScore(parseFloat(avg.toFixed(2)));
+        }
+      }).catch(console.error);
+
+      AOS.init({
+        duration: 1000,
+        once: true,
+        easing: 'ease-out-quad'
+      });
     }
-  }, [user]);
+  }, [user, noticeboardJobs.page]);
+
+  // Seperate effect for employers list as it doesn't need to re-fetch on page change
+  useEffect(() => {
+    if (user?.id) {
+       axios.get(`${API_BASE}/api/hr/employers_list`).then(res => setRegisteredEmployers(res.data.employers)).catch(console.error);
+    }
+  }, [user?.id]);
+
+  const handleLogout = async () => {
+    const result = await Swal.fire({
+      title: 'Terminate Session?',
+      text: 'Are you sure you want to disconnect from the secure Professional Portal?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#6366f1',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, log out!',
+      background: '#0f172a',
+      color: '#f1f5f9'
+    });
+
+    if (result.isConfirmed) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      setUser(null);
+    }
+  };
 
   // Close profile dropdown when clicking outside
   useEffect(() => {
@@ -91,10 +196,32 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(e.target)) {
         setShowProfileDropdown(false);
       }
+      if (notificationDropdownRef.current && !notificationDropdownRef.current.contains(e.target)) {
+        setShowNotificationDropdown(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const getDeviceIcon = (deviceStr) => {
+    if (!deviceStr) return <Monitor className="w-6 h-6 text-amber-400 opacity-80" />;
+    const ds = deviceStr.toLowerCase();
+    if (ds.includes('mobile') || ds.includes('phone') || ds.includes('android') || ds.includes('iphone')) return <Smartphone className="w-6 h-6 text-amber-400 opacity-80" />;
+    if (ds.includes('tablet') || ds.includes('ipad')) return <Tablet className="w-6 h-6 text-amber-400 opacity-80" />;
+    return <Laptop className="w-6 h-6 text-amber-400 opacity-80" />;
+  };
+
+  const openEditModal = () => {
+    setEditForm({
+      name: user?.name || '',
+      email: user?.email || '',
+      dob: personalInfo.dob || '',
+      phone: personalInfo.mobile || '',
+      gender: personalInfo.gender || ''
+    });
+    setShowEditProfileModal(true);
+  };
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
@@ -108,21 +235,80 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
   };
 
   // --- PROFILE LOGIC & STRICT LIMITS ---
-  const handleAddTag = (category, limit) => {
+  const handleAddTag = async (category, limit) => {
     if (cvData[category].length >= limit) {
-      alert("Please delete any previous one before adding a new one");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Limit Reached',
+        text: "Please delete a previous entry before adding a new one."
+      });
       return;
     }
     const val = newItem.value.trim();
     if (!val) return;
     const isDuplicate = cvData[category].some(item => item.toLowerCase() === val.toLowerCase());
-    if (isDuplicate) { alert(`"${val}" is already in your ${category}.`); return; }
-    setCvData({ ...cvData, [category]: [...cvData[category], val] });
+    if (isDuplicate) { 
+      Swal.fire({
+        icon: 'warning',
+        title: 'Duplicate Entry',
+        text: `"${val}" is already in your ${category}.`
+      });
+      return; 
+    }
+
+    const updatedItems = [...cvData[category], val];
+    const prevCvData = { ...cvData };
+    setCvData({ ...cvData, [category]: updatedItems });
     setNewItem({ type: '', value: '' });
+
+    // Sync to database
+    try {
+      const payload = {
+        about: cvData.about,
+        skills: category === 'skills' ? updatedItems : cvData.skills,
+        languages: category === 'languages' ? updatedItems : cvData.languages,
+        hobbies: category === 'hobbies' ? updatedItems : cvData.hobbies
+      };
+      await axios.put(`${API_BASE}/api/profile/customize/${user.id}`, payload);
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Sync Failed',
+        text: `Failed to sync ${category} to database.`
+      });
+      setCvData(prevCvData); // Rollback on error
+    }
   };
 
-  const removeItem = (category, index) => {
-    setCvData({ ...cvData, [category]: cvData[category].filter((_, i) => i !== index) });
+  const removeItem = async (category, index) => {
+    const itemToRemove = cvData[category][index];
+    const result = await Swal.fire({
+      title: 'Remove Tag?',
+      text: `Are you sure you want to remove "${itemToRemove}" from your ${category}?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#6366f1',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, remove it!'
+    });
+
+    if (!result.isConfirmed) return;
+
+    const updatedItems = cvData[category].filter((_, i) => i !== index);
+    setCvData({ ...cvData, [category]: updatedItems });
+
+    // Sync to database
+    try {
+      const payload = {
+        about: cvData.about,
+        skills: category === 'skills' ? updatedItems : cvData.skills,
+        languages: category === 'languages' ? updatedItems : cvData.languages,
+        hobbies: category === 'hobbies' ? updatedItems : cvData.hobbies
+      };
+      await axios.put(`${API_BASE}/api/profile/customize/${user.id}`, payload);
+    } catch (err) {
+      console.error(`Failed to sync ${category} deletion:`, err);
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -132,52 +318,247 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
       });
       await axios.put(`${API_BASE}/api/profile/education/${user.id}`, { education: cvData.education });
       await axios.put(`${API_BASE}/api/profile/personal/${user.id}`, { personal_info: personalInfo });
-      alert("Profile saved successfully to the database!");
-    } catch (err) { alert(err.response?.data?.detail || "Failed to save profile."); }
+      Swal.fire({ icon: 'success', title: 'Profile Cached', text: "Profile saved successfully to the database!" });
+    } catch (err) { 
+      Swal.fire({ icon: 'error', title: 'Save Failed', text: err.response?.data?.detail || "Failed to save profile." }); 
+    }
   };
 
   const handleSaveAbout = async () => {
+    const result = await Swal.fire({
+      title: 'Update Bio?',
+      text: 'This will modify your professional summary displayed to recruiters.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#6366f1',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, update bio'
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await axios.put(`${API_BASE}/api/profile/customize/${user.id}`, {
         about: cvData.about, skills: cvData.skills, languages: cvData.languages, hobbies: cvData.hobbies
       });
       setAboutSavedStatus('Saved!');
       setTimeout(() => setAboutSavedStatus(''), 2000);
-    } catch (err) { alert("Failed to save bio."); }
+    } catch (err) { 
+      Swal.fire({
+        icon: 'error',
+        title: 'Save Failed',
+        text: "Failed to save bio."
+      });
+    }
   };
 
-  const handleSavePersonalInfo = async () => {
-    if (personalInfo.mobile.length !== 10) {
-      alert("Mobile number must be exactly 10 digits.");
+  const handleUpdateProfileV2 = async () => {
+    const iti = phoneInputRef.current?.getInstance();
+    if (iti && !iti.isValidNumber()) {
+      Swal.fire({ icon: 'warning', title: 'Invalid Number', text: 'Please enter a valid international phone number.' });
       return;
     }
+
+    const result = await Swal.fire({
+      title: 'Commit Changes?',
+      text: 'Update your verified identity settings? Administrative approval may be required if limits are reached.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#6366f1',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, commit changes!'
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
-      await axios.put(`${API_BASE}/api/profile/personal/${user.id}`, { personal_info: personalInfo });
-      setIsEditingPersonal(false);
-      alert("Personal information updated successfully.");
-    } catch (err) { alert("Failed to update personal info."); }
+      await axios.put(`${API_BASE}/api/profile/update_v2/${user.id}`, editForm);
+      Swal.fire({
+        icon: 'success',
+        title: 'Profile Updated',
+        text: "Profile updated successfully! Note: Edit limits may require a fresh login to reflect accurately."
+      });
+      setUser({ ...user, name: editForm.name, email: editForm.email });
+      setPersonalInfo({ ...personalInfo, dob: editForm.dob, mobile: editForm.phone, gender: editForm.gender });
+      setShowEditProfileModal(false);
+    } catch (err) {
+      const msg = err.response?.data?.detail || "";
+      if (msg.toLowerCase().includes("limit reached")) {
+        setPendingChanges(editForm);
+        setShowApprovalModal(true);
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Update Failed',
+          text: msg || "Failed to update profile."
+        });
+      }
+    }
   };
 
-  const handleAddEducation = (e) => {
+  const submitApprovalRequest = async () => {
+    setIsSubmittingApproval(true);
+    try {
+      await axios.post(`${API_BASE}/api/profile/request_update/${user.id}`, {
+        user_id: user.id,
+        name: user.name,
+        requested_changes: pendingChanges,
+        reason: approvalReason
+      });
+      Swal.fire({
+        icon: 'info',
+        title: 'Request Submitted',
+        text: "Update request submitted! Admin will review and reset your limits shortly."
+      });
+      setShowApprovalModal(false);
+      setApprovalReason("");
+      setShowEditProfileModal(false);
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Request Failed',
+        text: err.response?.data?.detail || "Request failed."
+      });
+    } finally {
+      setIsSubmittingApproval(false);
+    }
+  };
+
+  const handleAddEducation = async (e) => {
     e.preventDefault();
-    const isDuplicate = cvData.education.some(
-      edu => edu.degree.toLowerCase() === newEdu.degree.trim().toLowerCase() &&
-        edu.institution.toLowerCase() === newEdu.institution.trim().toLowerCase()
-    );
-    if (isDuplicate) { alert("You have already added this degree from this institution."); return; }
-    setCvData({ ...cvData, education: [{ ...newEdu, id: Date.now() }, ...cvData.education] });
-    setNewEdu({ degree: '', institution: '', year: '', score: '' });
+
+    const result = await Swal.fire({
+      title: isEditingEdu ? 'Update Ledger?' : 'Save to Ledger?',
+      text: `Are you sure you want to ${isEditingEdu ? 'update' : 'add'} this academic record?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#a855f7',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, proceed!'
+    });
+
+    if (!result.isConfirmed) return;
+
+    let updatedEducation;
+    if (isEditingEdu) {
+      updatedEducation = cvData.education.map(edu => (edu.id || edu._id) === editEduId ? { ...newEdu, id: editEduId } : edu);
+    } else {
+      updatedEducation = [{ ...newEdu, id: Date.now() }, ...cvData.education];
+    }
+
+    setCvData({ ...cvData, education: updatedEducation });
+    setIsEditingEdu(false);
+    setEditEduId(null);
+
+    // Sync to database
+    try {
+      await axios.put(`${API_BASE}/api/profile/education/${user.id}`, { education: updatedEducation });
+
+      // Real-time update: Re-fetch analytics and profile data
+      const [analyticsRes, profileRes] = await Promise.all([
+        axios.get(`${API_BASE}/api/analytics/employee/${user.id}`),
+        axios.get(`${API_BASE}/api/secure_search/${user.id}`)
+      ]);
+
+      if (analyticsRes.data) setAnalytics(analyticsRes.data);
+      if (profileRes.data) {
+        let standing = profileRes.data.academic_standing || { grade: "N/A", description: "No Data", color: "#64748b" };
+        if (typeof standing === 'string') {
+          standing = { grade: "N/A", description: standing, color: "#64748b" };
+        }
+        setCvData(prev => ({
+          ...prev,
+          education: profileRes.data.education || [],
+          academic_standing: standing
+        }));
+      }
+
+      setFingerprintKey(prev => prev + 1); // Refresh fingerprint component
+    } catch (err) {
+      console.error("Education sync failed:", err);
+      Swal.fire({
+        icon: 'warning',
+        title: 'Sync Warning',
+        text: "Education saved locally but failed to sync to database. Please check your connection."
+      });
+    }
+
+    setNewEdu({ degree: '', institution: '', start_year: '', end_year: '', year: '', score: '' });
     setShowEduForm(false);
+  };
+
+  const handleRemoveEducation = async (eduId) => {
+    const result = await Swal.fire({
+      title: 'Burn Ledger Entry?',
+      text: 'Are you sure you want to permanently delete this education record from the blockchain ledger?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#f43f5e',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (!result.isConfirmed) return;
+
+    const updatedEducation = cvData.education.filter(e => (e.id || e._id) !== eduId);
+    const prevEducation = cvData.education;
+    setCvData({ ...cvData, education: updatedEducation });
+
+    try {
+      await axios.put(`${API_BASE}/api/profile/education/${user.id}`, { education: updatedEducation });
+
+      // Real-time update: Re-fetch analytics and profile data
+      const [analyticsRes, profileRes] = await Promise.all([
+        axios.get(`${API_BASE}/api/analytics/employee/${user.id}`),
+        axios.get(`${API_BASE}/api/secure_search/${user.id}`)
+      ]);
+
+      if (analyticsRes.data) setAnalytics(analyticsRes.data);
+      if (profileRes.data) {
+        let standing = profileRes.data.academic_standing || { grade: "N/A", description: "No Data", color: "#64748b" };
+        if (typeof standing === 'string') {
+          standing = { grade: "N/A", description: standing, color: "#64748b" };
+        }
+        setCvData(prev => ({
+          ...prev,
+          education: profileRes.data.education || [],
+          academic_standing: standing
+        }));
+      }
+
+      setFingerprintKey(prev => prev + 1);
+    } catch (err) {
+      console.error("Education deletion sync failed:", err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Sync Failed',
+        text: "Failed to sync education deletion. Reverting changes."
+      });
+      setCvData(prev => ({ ...prev, education: prevEducation }));
+    }
   };
 
   // --- EXPERIENCE LOGIC (BRIDGE BLOCKER) ---
   const handleAddExperience = async (e) => {
     e.preventDefault();
-    if (!newExp.firm) { alert("Please select a company from the dropdown."); return; }
+    if (!newExp.firm) { Swal.fire({ icon: 'warning', title: 'Selection Required', text: "Please select a company from the dropdown." }); return; }
     if (newExp.current && cvData.experience.some(exp => exp.end_date === 'Present')) {
-      alert("🚨 You cannot have two active jobs. Please Raise a Relieve Request for your current employer before onboarding to a new one.");
+      Swal.fire({ icon: 'error', title: 'Active Job Conflict', text: "🚨 You cannot have two active jobs. Please Raise a Relieve Request for your current employer before onboarding to a new one." });
       return;
     }
+
+    const result = await Swal.fire({
+      title: 'Dispatch Onboarding?',
+      text: `Send a cryptographically secured onboarding request to ${newExp.firm} HR?`,
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, dispatch!'
+    });
+
+    if (!result.isConfirmed) return;
+
     const pendingExp = { id: Date.now(), role: newExp.role, firm: newExp.firm, start_date: newExp.start, end_date: newExp.current ? 'Present' : newExp.end, is_verified: false };
     setCvData({ ...cvData, experience: [pendingExp, ...cvData.experience] });
     try {
@@ -185,29 +566,55 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
         employee_id: user.id, employee_name: user.name, employer_id: `PENDING_SEARCH`,
         company_name: newExp.firm, job_title: newExp.role, type: "onboarding"
       });
-      alert(`Onboarding approval request sent to ${newExp.firm} HR.`);
+      Swal.fire({
+        icon: 'success',
+        title: 'Request Sent',
+        text: `Onboarding approval request sent to ${newExp.firm} HR.`
+      });
     } catch (err) { console.error(err); }
     setNewExp({ role: '', firm: '', start: '', end: '', current: false });
     setShowExpForm(false);
   };
 
   const handleApply = async (job) => {
-    if (!window.confirm(`Are you sure you want to officially apply for ${job.job_title} at ${job.company_name}?`)) return;
+    const result = await Swal.fire({
+      title: 'Apply for Position?',
+      text: `Are you sure you want to officially apply for ${job.job_title} at ${job.company_name}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#6366f1',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, apply!'
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await axios.post(`${API_BASE}/api/hr/apply`, {
         employee_id: user.id, employee_name: user.name, employer_id: job.employer_id,
         company_name: job.company_name, job_title: job.job_title, type: "application"
-      });
-      alert(`Success! Application submitted to ${job.company_name}.`);
-    } catch (err) { alert("Error submitting application."); }
+      }, authHeader);
+      Swal.fire({ icon: 'success', title: 'Application Sent', text: `Success! Application submitted to ${job.company_name}.` });
+    } catch (err) { Swal.fire({ icon: 'error', title: 'Application Failed', text: "Error submitting application." }); }
   };
 
   const handleRelieveRequest = async (firm) => {
-    if (!window.confirm(`Are you absolutely sure you want to leave ${firm} and apply for a Relieve Request?`)) return;
+    const result = await Swal.fire({
+      title: 'Relieve Request?',
+      text: `Are you absolutely sure you want to leave ${firm} and apply for a Relieve Request? This is a permanent ledger action.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#f43f5e',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, request relief'
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
-      await axios.post(`${API_BASE}/api/hr/request_relieve`, { employee_id: user.id, employee_name: user.name, company_name: firm });
-      alert(`Relieve request securely dispatched to ${firm} HR.`);
-    } catch (err) { alert("Failed to send relieve request."); }
+      await axios.post(`${API_BASE}/api/hr/request_relieve`, { employee_id: user.id, employee_name: user.name, company_name: firm }, authHeader);
+      Swal.fire({ icon: 'success', title: 'Request Sent', text: `Relieve request securely dispatched to ${firm} HR.` });
+    } catch (err) { Swal.fire({ icon: 'error', title: 'Internal Error', text: "Failed to send relieve request." }); }
   };
 
   // --- PASSWORD SECURITY LOGIC ---
@@ -224,16 +631,29 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
-    if (passwordForm.oldPassword === passwordForm.newPassword) { alert("You cannot change your password to your current password."); return; }
-    if (pwdStrength < 100) { alert("Please meet all password complexity requirements."); return; }
-    if (!passwordsMatch) { alert("Passwords do not match."); return; }
+    if (passwordForm.oldPassword === passwordForm.newPassword) { Swal.fire({ icon: 'warning', title: 'Invalid Policy', text: "You cannot change your password to your current password." }); return; }
+    if (pwdStrength < 100) { Swal.fire({ icon: 'warning', title: 'Weak Passkey', text: "Please meet all password complexity requirements." }); return; }
+    if (!passwordsMatch) { Swal.fire({ icon: 'error', title: 'Mismatch', text: "Passwords do not match." }); return; }
+
+    const result = await Swal.fire({
+      title: 'Update Passkey?',
+      text: 'This will permanently change your professional portal access key.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#6366f1',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, update now!'
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await axios.post(`${API_BASE}/api/auth/change_password/${user.id}`, {
         old_password: passwordForm.oldPassword, new_password: passwordForm.newPassword, confirm_password: passwordForm.confirmPassword
-      });
-      alert("Password updated securely!");
+      }, authHeader);
+      Swal.fire({ icon: 'success', title: 'Security Updated', text: "Password updated securely!" });
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
-    } catch (err) { alert(err.response?.data?.detail || "Failed to update password."); }
+    } catch (err) { Swal.fire({ icon: 'error', title: 'Update Failed', text: err.response?.data?.detail || "Failed to update password." }); }
   };
 
   // --- Real-Time Chat Logic (Enterprise P2P) ---
@@ -305,7 +725,7 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
       setQuizAnswers({});
       setShowQuizModal(true);
     } catch (err) {
-      alert(err.response?.data?.detail || "Failed to generate AI Quiz.");
+      Swal.fire({ icon: 'error', title: 'Generation Failed', text: err.response?.data?.detail || "Failed to generate AI Quiz." });
     } finally {
       setGeneratingSkill(null);
     }
@@ -314,7 +734,7 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
   const handleVerifyQuiz = async (e) => {
     e.preventDefault();
     if (Object.keys(quizAnswers).length < quizData.questions.length) {
-      alert("Please select an answer for all questions.");
+      Swal.fire({ icon: 'warning', title: 'Quiz Incomplete', text: "Please select an answer for all questions." });
       return;
     }
     try {
@@ -326,13 +746,13 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
         headers: { Authorization: `Bearer ${user.token}` }
       });
 
-      alert(res.data.message);
+      Swal.fire({ icon: 'info', title: 'Quiz Result', text: res.data.message });
       if (res.data.passed) {
         setCvData(prev => ({ ...prev, verified_skills: [...(prev.verified_skills || []), quizData.skill] }));
       }
       setShowQuizModal(false);
     } catch (err) {
-      alert(err.response?.data?.detail || "Failed to submit AI Quiz.");
+      Swal.fire({ icon: 'error', title: 'Submission Failed', text: err.response?.data?.detail || "Failed to submit AI Quiz." });
     }
   };
 
@@ -343,7 +763,7 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
       });
       setIsIncognito(res.data.incognito_mode);
     } catch (err) {
-      alert(err.response?.data?.detail || "Failed to toggle Incognito Mode.");
+      Swal.fire({ icon: 'error', title: 'Action Failed', text: err.response?.data?.detail || "Failed to toggle Incognito Mode." });
     }
   };
 
@@ -386,7 +806,7 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
           <div style="margin-bottom: 15px;">
              <h3 style="margin: 0; color: #0f172a; font-size: 16px;">${edu.degree}</h3>
              <p style="margin: 0; font-weight: bold; font-size: 14px; color: #475569;">${edu.institution}</p>
-             <p style="margin: 0; font-size: 12px; color: #64748b;">Class of ${edu.year} • Score: ${edu.score}%</p>
+             <p style="margin: 0; font-size: 12px; color: #64748b;">Class of ${edu.start_year || 'N/A'} — ${edu.end_year || edu.year || 'N/A'} • Score: ${edu.score}%</p>
           </div>
         `).join('')}
       </div>
@@ -394,7 +814,7 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
 
     const opt = {
       margin: [0.5, 0.5, 0.5, 0.5],
-      filename: `${user?.name.replace(/\\s/g, '_')}_CETS_Verified_Resume.pdf`,
+      filename: `${(user?.name || 'User').replace(/\s/g, '_')}_CETS_Verified_Resume.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2 },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
@@ -405,12 +825,14 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
 
   // --- RENDER ---
   return (
-    <div className="flex min-h-screen animated-gradient-bg text-slate-100 relative overflow-hidden">
+    <div className="flex min-h-screen text-slate-100 relative overflow-hidden bg-transparent">
 
-      {/* DECORATIVE FLOATING ORBS */}
-      <div className="orb orb-primary w-96 h-96 -top-48 -left-48" />
-      <div className="orb orb-accent w-80 h-80 top-1/2 -right-40" />
-      <div className="orb orb-cyan w-64 h-64 bottom-0 left-1/3" />
+      {/* DECORATIVE FLOATING ORBS (Extra depth for dashboard) */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="orb orb-primary w-96 h-96 -top-48 -left-48 opacity-20" />
+        <div className="orb orb-accent w-80 h-80 top-1/2 -right-40 opacity-15" />
+        <div className="orb orb-cyan w-64 h-64 bottom-0 left-1/3 opacity-10" />
+      </div>
 
       {/* SIDEBAR */}
       <div className="w-72 flex flex-col glass-sidebar z-10 relative">
@@ -426,7 +848,8 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
           <nav className="space-y-1.5">
             {[
               { id: 'profile', icon: User, label: 'My Dashboard' },
-              { id: 'ledger', icon: ShieldCheck, label: 'Verified Ledger' },
+              { id: 'education', icon: GraduationCap, label: 'Education History' },
+              { id: 'ledger', icon: ShieldCheck, label: 'Verified Employment Details' },
               { id: 'noticeboard', icon: Briefcase, label: 'Job Search' },
               { id: 'notifications', icon: Bell, label: 'Notifications' },
               //{ id: 'security', icon: KeyRound, label: 'Security' },
@@ -442,7 +865,7 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
           </nav>
         </div>
         <div className="mt-auto p-8 border-t border-white/[0.04]">
-          <button onClick={() => setUser(null)} className="w-full flex items-center p-3 rounded-xl text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-all font-medium">
+          <button onClick={handleLogout} className="w-full flex items-center p-3 rounded-xl text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-all font-medium">
             <LogOut className="mr-3 w-5 h-5" /> Log Out
           </button>
         </div>
@@ -451,24 +874,63 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
       {/* MAIN WORKSPACE */}
       <div className="flex-1 flex flex-col h-screen overflow-y-auto relative z-10">
 
-        {/* HEADER */}
-        <header className="h-20 px-10 flex items-center justify-between glass-header sticky top-0 z-50">
-          <div className="flex items-center space-x-2">
-            <Hexagon className="w-6 h-6 text-indigo-500" />
-            <span className="text-xl font-black tracking-tighter text-white">CETS</span>
+        {/* HEADER (Matched with Employer Dashboard for consistent spaciousness) */}
+        <header className="h-28 px-10 flex items-center justify-between glass-header sticky top-0 z-50 transition-all">
+          <div className="flex flex-col">
+            <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
+              <User className="w-5 h-5 text-indigo-400" />
+              Welcome back, <span className="text-indigo-400">{user?.name || 'Professional'}</span>
+            </h1>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Professional Ecosystem • Workforce Ledger</p>
+            <div className="flex items-center gap-3 mt-1.5">
+              <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]">
+                <ShieldCheck className="w-2.5 h-2.5 text-emerald-400" />
+                <span className="text-[8px] font-black uppercase tracking-tighter text-emerald-400/80">Secured by Blockchain</span>
+              </div>
+              <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.05)]">
+                <Activity className="w-2.5 h-2.5 text-indigo-400 animate-pulse" />
+                <span className="text-[8px] font-black uppercase tracking-tighter text-indigo-400/80">Cognitive Firewall Active</span>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center space-x-6">
-            {/* NOTIFICATION BELL */}
-            <button onClick={() => { setActiveTab('notifications'); markNotificationsRead(); }} className={`relative p-2.5 rounded-full transition-all bg-white/[0.06] hover:bg-white/[0.1] ${unreadCount > 0 ? 'glow-pulse' : ''}`}>
-              <Bell className="w-5 h-5" />
-              {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500 border-2 border-slate-900"></span>
-                </span>
-              )}
-            </button>
+            {/* NOTIFICATION BELL & DROPDOWN */}
+            <div className="relative" ref={notificationDropdownRef}>
+              <button onClick={() => setShowNotificationDropdown(!showNotificationDropdown)} className={`relative p-2.5 rounded-full transition-all bg-white/[0.06] hover:bg-white/[0.1] ${unreadCount > 0 ? 'glow-pulse' : ''}`}>
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center bg-rose-500 rounded-full text-[9px] font-bold border border-slate-900 shadow-sm">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+              <AnimatePresence>
+                {showNotificationDropdown && (
+                  <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ type: "spring", stiffness: 300, damping: 25 }} className="absolute right-0 mt-3 w-80 shadow-2xl glass-card overflow-hidden !bg-slate-900/95 z-50">
+                    <div className="p-3 border-b border-white/[0.06] flex justify-between items-center">
+                      <p className="font-bold text-sm">Recent Notifications</p>
+                      {unreadCount > 0 && <span className="bg-rose-500/20 text-rose-400 text-[10px] px-2 py-0.5 rounded-full font-bold">{unreadCount} Unread</span>}
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto w-full">
+                      {notifications.length === 0 ? (
+                        <p className="text-center text-slate-500 text-xs py-4">No recent notifications.</p>
+                      ) : (
+                        notifications.slice().reverse().slice(0, 5).map((n, idx) => (
+                          <div key={idx} className={`p-3 border-b border-white/[0.04] transition-all hover:bg-white/[0.04] ${!n.is_read ? 'border-l-2 border-l-indigo-500 bg-indigo-500/[0.03]' : ''}`}>
+                            <p className="text-xs font-bold text-slate-300 truncate">{n.title || n.type || "Alert"}</p>
+                            <p className="text-[10px] text-slate-400 line-clamp-2 mt-1">{n.message}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="p-2 border-t border-white/[0.06]">
+                      <button onClick={() => { setActiveTab('notifications'); markNotificationsRead(); setShowNotificationDropdown(false); }} className="w-full py-2 rounded-lg text-[11px] font-bold bg-white/[0.04] hover:bg-indigo-500 hover:text-white transition-all text-slate-300">Show more...</button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* PROFILE AVATAR DROPDOWN */}
             <div className="relative" ref={profileDropdownRef}>
@@ -480,7 +942,7 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
               </button>
               <AnimatePresence>
                 {showProfileDropdown && (
-                  <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ type: "spring", stiffness: 300, damping: 25 }} className="absolute right-0 mt-3 w-56 rounded-2xl shadow-2xl glass-card overflow-hidden !bg-slate-900/95 border border-white/[0.08]">
+                  <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ type: "spring", stiffness: 300, damping: 25 }} className="absolute right-0 mt-3 w-56 shadow-2xl glass-card overflow-hidden !bg-slate-900/95">
                     <div className="p-3 border-b border-white/[0.06]">
                       <p className="text-sm font-bold truncate">{user?.name}</p>
                       <p className="text-xs text-slate-500 font-mono truncate">{user?.id}</p>
@@ -489,19 +951,11 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
                       <button onClick={() => { setActiveTab('profile'); setShowProfileDropdown(false); }} className="w-full flex items-center p-2.5 rounded-xl text-sm text-slate-300 hover:bg-white/[0.06] hover:text-indigo-400 transition-all font-medium">
                         <User className="w-4 h-4 mr-3 text-slate-500" /> View Profile
                       </button>
-                      <button onClick={() => { setShowEditProfileModal(true); setShowProfileDropdown(false); }} className="w-full flex items-center p-2.5 rounded-xl text-sm text-slate-300 hover:bg-white/[0.06] hover:text-indigo-400 transition-all font-medium">
+                      <button onClick={() => { openEditModal(); setShowProfileDropdown(false); }} className="w-full flex items-center p-2.5 rounded-xl text-sm text-slate-300 hover:bg-white/[0.06] hover:text-indigo-400 transition-all font-medium">
                         <Settings className="w-4 h-4 mr-3 text-slate-500" /> Edit Profile
                       </button>
                       <button onClick={() => { setActiveTab('security'); setShowProfileDropdown(false); }} className="w-full flex items-center p-2.5 rounded-xl text-sm text-slate-300 hover:bg-white/[0.06] hover:text-indigo-400 transition-all font-medium">
                         <KeyRound className="w-4 h-4 mr-3 text-slate-500" /> Security
-                      </button>
-                      <button onClick={() => { setActiveTab('profile'); setShowProfileDropdown(false); }} className="w-full flex items-center p-2.5 rounded-xl text-sm text-slate-300 hover:bg-white/[0.06] hover:text-indigo-400 transition-all font-medium">
-                        <Briefcase className="w-4 h-4 mr-3 text-slate-500" /> Home
-                      </button>
-                    </div>
-                    <div className="p-2 border-t border-white/[0.06]">
-                      <button onClick={() => { setUser(null); }} className="w-full flex items-center p-2.5 rounded-xl text-sm text-rose-400 hover:bg-rose-500/10 transition-all font-medium">
-                        <LogOut className="w-4 h-4 mr-3" /> Log Out
                       </button>
                     </div>
                   </motion.div>
@@ -512,56 +966,72 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
         </header>
 
         <div className="p-10">
-          {/* WELCOME BANNER */}
-          <div className="w-full p-6 mb-8 rounded-2xl bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border border-indigo-500/20 backdrop-blur-sm">
-            <h1 className="text-3xl font-black bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">Welcome to your CETS Portal, {user?.name}! 👋</h1>
-            <p className="mt-2 text-slate-400 font-medium flex items-center gap-2"><Lock className="w-4 h-4 text-indigo-400" /> End-to-End Blockchain Encryption Active</p>
-          </div>
-
-          {/* ANALYTICS ROW */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-            <div className="stat-card">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Avg. Employment Tenure</p>
-              <h3 className="text-3xl font-black text-indigo-400">{analytics.average_tenure} <span className="text-base font-bold text-slate-500">Years</span></h3>
-              <p className="text-xs text-slate-400 mt-1 font-medium">{analytics.remarks}</p>
-            </div>
-            <div className="stat-card">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Academic Standing</p>
-              <h3 className="text-3xl font-black" style={{ color: cvData.academic_standing?.color || "#64748b" }}>{cvData.academic_standing?.grade || "N/A"}</h3>
-              <p className="text-xs text-slate-400 mt-1 font-medium">Remarks: {cvData.academic_standing?.description || "No Data"}</p>
-            </div>
-            <div className="stat-card">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Profile Completion</p>
-              <h3 className="text-3xl font-black text-emerald-400">{Math.min(100, Math.round(((cvData.about.length > 0 ? 25 : 0) + (cvData.skills.length > 0 ? 25 : 0) + (cvData.education.length > 0 ? 25 : 0) + (cvData.experience.length > 0 ? 25 : 0))))}%</h3>
-              <div className="strength-bar mt-2"><div className="strength-bar-fill bg-gradient-to-r from-emerald-500 to-cyan-400" style={{ width: `${Math.min(100, ((cvData.about.length > 0 ? 25 : 0) + (cvData.skills.length > 0 ? 25 : 0) + (cvData.education.length > 0 ? 25 : 0) + (cvData.experience.length > 0 ? 25 : 0)))}%` }} /></div>
-            </div>
-            <div className="stat-card">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Blockchain Records</p>
-              <h3 className="text-3xl font-black text-cyan-400">{verifiedJobs.length}</h3>
-              <p className="text-xs text-slate-400 mt-1 font-medium">Immutable jobs on ledger</p>
-            </div>
-            <div className="stat-card">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Last Login</p>
-              <h3 className="text-lg font-black text-amber-400">{user?.last_login ? new Date(user.last_login).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'First Session'}</h3>
-              <p className="text-xs text-slate-400 mt-1 font-medium font-mono">IP: {user?.last_login_ip || 'N/A'}</p>
-            </div>
-          </div>
 
           <AnimatePresence mode="wait">
-
-            {/* TAB 1: PROFILE & LIMITS */}
+            {/* TAB: PROFILE */}
             {activeTab === 'profile' && (
-              <motion.div key="profile" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-4xl space-y-6">
+              <motion.div key="profile" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="space-y-6 w-full">
+                
+                {/* ACADEMIC FINGERPRINT (TOP POSITION) */}
+                <div className="mb-8">
+                  <AcademicFingerprint key={fingerprintKey} userId={user.id} />
+                </div>
 
-                <div className="glass-card p-8 flex justify-between items-start">
-                  <div><h2 className="text-3xl font-black mb-2 flex items-center gap-3">Professional Profile {isVerified && <span className="verified-badge"><ShieldCheck className="w-3 h-3" /> Verified Identity</span>}</h2><p className="text-slate-500 text-sm">Manage your CV, Skills, and Analytics.</p></div>
-                  <div className="flex gap-3">
-                    <button onClick={exportResume} className="btn-premium px-6 py-3 rounded-xl text-sm flex items-center shadow-lg transition-transform hover:scale-105" style={{ background: 'linear-gradient(135deg, #0ea5e9, #3b82f6)' }} ><Download className="w-4 h-4 mr-2" /> Export to PDF</button>
-                    <button onClick={handleSaveProfile} className="btn-premium px-8 py-3 rounded-xl text-sm flex items-center shadow-lg hover:shadow-indigo-500/25"><Save className="w-4 h-4 mr-2" /> Save Full Profile</button>
+                {/* ANALYTICS ROW */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+                  <div className="stat-card">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Avg. Employment Tenure</p>
+                    <h3 className="text-3xl font-black text-indigo-400">{analytics.average_tenure} <span className="text-base font-bold text-slate-500">Years</span></h3>
+                    <p className="text-xs text-slate-400 mt-1 font-medium">{analytics.remarks}</p>
+                  </div>
+                  <div className="stat-card">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Academic Standing</p>
+                    <h3 className="text-3xl font-black" style={{ color: cvData.academic_standing?.color || "#64748b" }}>{cvData.academic_standing?.grade || "N/A"}</h3>
+                    <p className="text-xs text-slate-400 mt-1 font-medium">Remarks: {cvData.academic_standing?.description || "No Data"}</p>
+                  </div>
+                  <div className="stat-card">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Profile Completion</p>
+                    <h3 className="text-3xl font-black text-emerald-400">{Math.min(100, Math.round(((cvData.about.length > 0 ? 25 : 0) + (cvData.skills.length > 0 ? 25 : 0) + (cvData.education.length > 0 ? 25 : 0) + (cvData.experience.length > 0 ? 25 : 0))))}%</h3>
+                    <div className="strength-bar mt-2"><div className="strength-bar-fill bg-gradient-to-r from-emerald-500 to-cyan-400" style={{ width: `${Math.min(100, ((cvData.about.length > 0 ? 25 : 0) + (cvData.skills.length > 0 ? 25 : 0) + (cvData.education.length > 0 ? 25 : 0) + (cvData.experience.length > 0 ? 25 : 0)))}%` }} /></div>
+                  </div>
+                  <div className="stat-card">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Blockchain Records</p>
+                    <h3 className="text-3xl font-black text-cyan-400">{verifiedJobs.length}</h3>
+                    <p className="text-xs text-slate-400 mt-1 font-medium">Immutable jobs on ledger</p>
+                  </div>
+                  <div className="stat-card flex flex-col justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Last Login</p>
+                      <h3 className="text-lg font-black text-amber-400 mb-1 leading-tight">{user?.last_login ? new Date(user.last_login).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'First Session'}</h3>
+                    </div>
+                    <div className="flex items-center justify-between mt-auto pt-2 border-t border-white/[0.06]">
+                      <p className="text-[10px] text-slate-400 font-medium font-mono">IP: {user?.last_login_ip || 'N/A'}</p>
+                      <div title={user?.last_login_device || 'Unknown Device'} className="p-1.5 rounded-lg bg-white/[0.04]">
+                        {getDeviceIcon(user?.last_login_device)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="stat-card flex flex-col justify-between bg-gradient-to-br from-rose-500/[0.06] to-transparent" style={{ "--stat-color": "#f43f5e" }}>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Behavioral Trust Score</p>
+                    <h3 className="text-3xl font-black text-rose-400">{trustScore} <span className="text-base font-bold text-slate-500">/ 10</span></h3>
+                    <div className="w-full h-1.5 bg-white/[0.04] rounded-full mt-2 overflow-hidden border border-white/[0.06]">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(trustScore / 10) * 100}%` }}
+                        className="h-full bg-gradient-to-r from-rose-500 to-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.4)]"
+                      />
+                    </div>
+                    <p className="text-[9px] text-slate-500 mt-2 font-medium uppercase tracking-tighter">Aggregate Professional Reputation</p>
                   </div>
                 </div>
 
-
+                <div className="max-w-4xl space-y-6">
+                  <div className="glass-card p-8 flex justify-between items-start">
+                  <div><h2 className="text-3xl font-black mb-2 flex items-center gap-3">Professional Profile {isVerified && <span className="verified-badge"><ShieldCheck className="w-3 h-3" /> Verified Identity</span>}</h2><p className="text-slate-500 text-sm">Manage your CV, Skills, and Analytics.</p></div>
+                  <div className="flex gap-3">
+                    <button onClick={exportResume} className="btn-premium px-6 py-3 rounded-xl text-sm flex items-center shadow-lg transition-transform hover:scale-105" style={{ background: 'linear-gradient(135deg, #0ea5e9, #3b82f6)' }} ><Download className="w-4 h-4 mr-2" /> Export to PDF</button>
+                  </div>
+                </div>
 
                 <div className="glass-card p-8">
                   <div className="flex justify-between items-center mb-4">
@@ -577,7 +1047,6 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
 
                 {/* STRICT ARRAYS: SKILLS, LANGS, HOBBIES */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Skills (Max 20) */}
                   <div className="glass-card p-6">
                     <div className="flex justify-between items-center mb-4"><h3 className="text-sm font-bold flex items-center"><Code className="w-4 h-4 mr-2 text-indigo-400" /> Skills</h3><span className="text-[10px] font-bold text-slate-500">Limit: {cvData.skills.length}/20</span></div>
                     <div className="flex flex-wrap gap-1.5 mb-4 min-h-[2rem]">
@@ -599,7 +1068,6 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
                     </div>
                   </div>
 
-                  {/* Languages (Max 10) */}
                   <div className="glass-card p-6">
                     <div className="flex justify-between items-center mb-4"><h3 className="text-sm font-bold flex items-center"><BookOpen className="w-4 h-4 mr-2 text-purple-400" /> Languages</h3><span className="text-[10px] font-bold text-slate-500">Limit: {cvData.languages.length}/10</span></div>
                     <div className="flex flex-wrap gap-1.5 mb-4 min-h-[2rem]">
@@ -611,7 +1079,6 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
                     </div>
                   </div>
 
-                  {/* Hobbies (Max 5) */}
                   <div className="glass-card p-6">
                     <div className="flex justify-between items-center mb-4"><h3 className="text-sm font-bold flex items-center"><Activity className="w-4 h-4 mr-2 text-emerald-400" /> Hobbies</h3><span className="text-[10px] font-bold text-slate-500">Limit: {cvData.hobbies.length}/5</span></div>
                     <div className="flex flex-wrap gap-1.5 mb-4 min-h-[2rem]">
@@ -620,50 +1087,111 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
                     <div className="flex mt-auto">
                       <input type="text" placeholder="Add Hobby" value={newItem.type === 'hobbies' ? newItem.value : ''} onChange={(e) => setNewItem({ type: 'hobbies', value: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && handleAddTag('hobbies', 5)} className="glass-input flex-1 p-2 text-xs rounded-r-none" />
                       <button onClick={() => handleAddTag('hobbies', 5)} className="px-3 bg-emerald-500/20 text-emerald-400 rounded-r-xl border border-l-0 border-white/[0.08] hover:bg-emerald-500/30 transition-colors"><Plus className="w-3 h-3" /></button>
-                    </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
-                {/* EDUCATION HISTORY */}
-                <div className="glass-card p-8">
-                  <div className="flex justify-between items-center mb-6 pb-4 border-b border-dashed border-white/[0.08]">
-                    <h3 className="text-xl font-bold flex items-center"><GraduationCap className="w-6 h-6 mr-3 text-purple-400" /> Education History</h3>
-                    <button onClick={() => setShowEduForm(!showEduForm)} className="text-sm font-bold text-purple-400 flex items-center hover:text-purple-300 bg-purple-500/10 px-4 py-2 rounded-full transition-colors"><Plus className="w-4 h-4 mr-1" /> Add</button>
+            {/* TAB: EDUCATION */}
+            {activeTab === 'education' && (
+              <motion.div key="education" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-4xl space-y-6">
+                <div className="glass-card p-10 flex justify-between items-center bg-gradient-to-r from-purple-500/[0.08] to-indigo-500/[0.08] mb-8 gap-8">
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-extrabold mb-1.5 flex items-center tracking-tight text-white"><GraduationCap className="mr-3 text-purple-400" /> Academic Journey</h2>
+                    <p className="text-slate-500 text-sm font-medium">Visualize your educational trajectory and manage your degrees.</p>
                   </div>
-                  <AnimatePresence>
-                    {showEduForm && (
-                      <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} onSubmit={handleAddEducation} className="mb-6 overflow-hidden">
-                        <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.06] space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="relative md:col-span-2"><BookOpen className="absolute left-3 top-3 w-4 h-4 text-slate-500" /><input type="text" placeholder="Degree" required value={newEdu.degree} onChange={(e) => setNewEdu({ ...newEdu, degree: e.target.value })} className="glass-input w-full pl-10" /></div>
-                            <div className="relative"><Calendar className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
-                              <select required value={newEdu.year} onChange={(e) => setNewEdu({ ...newEdu, year: e.target.value })} className="glass-input w-full pl-10 appearance-none">
-                                <option value="">Year</option>
-                                {[2026, 2025, 2024, 2023, 2022, 2021, 2020].map(y => <option key={y} value={y}>{y}</option>)}
-                              </select>
-                            </div>
-                            <div className="relative md:col-span-2"><Building2 className="absolute left-3 top-3 w-4 h-4 text-slate-500" /><input type="text" placeholder="Institution Name" required value={newEdu.institution} onChange={(e) => setNewEdu({ ...newEdu, institution: e.target.value })} className="glass-input w-full pl-10" /></div>
-                            <div className="relative"><Activity className="absolute left-3 top-3 w-4 h-4 text-slate-500" /><input type="number" placeholder="Marks (%)" required value={newEdu.score} onChange={(e) => setNewEdu({ ...newEdu, score: e.target.value })} className="glass-input w-full pl-10" /></div>
+                  <button onClick={() => { if (!showEduForm) { setNewEdu({ degree: '', institution: '', start_year: '', end_year: '', year: '', score: '' }); setIsEditingEdu(false); } setShowEduForm(!showEduForm); }} 
+                    className="btn-premium px-8 py-3.5 rounded-2xl text-sm flex items-center gap-2.5 shadow-xl shadow-purple-500/25 active:scale-95 transition-all whitespace-nowrap" 
+                    style={{ background: 'linear-gradient(135deg, #a855f7, #6366f1)' }}
+                  >
+                    <Plus className="w-5 h-5 flex-shrink-0" /> 
+                    <span className="font-bold">Add Degree</span>
+                  </button>
+                </div>
+
+                <AnimatePresence>
+                  {showEduForm && (
+                    <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} onSubmit={handleAddEducation} className="mb-6 overflow-hidden">
+                      <div className="p-8 rounded-3xl bg-white/[0.03] border border-white/[0.06] space-y-6 shadow-2xl">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="md:col-span-2 space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Qualification / Degree</label>
+                            <div className="relative"><BookOpen className="absolute left-4 top-4 w-5 h-5 text-indigo-400" /><input type="text" placeholder="e.g. Bachelor of Technology" required value={newEdu.degree} onChange={(e) => setNewEdu({ ...newEdu, degree: e.target.value })} className="glass-input w-full pl-12 !py-4 text-base" /></div>
                           </div>
-                          <div className="flex justify-end space-x-3 mt-4"><button type="button" onClick={() => setShowEduForm(false)} className="px-5 py-2 text-sm text-slate-500 hover:text-slate-300 transition-colors">Cancel</button><button type="submit" className="btn-premium px-5 py-2 rounded-full text-sm">Save</button></div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 flex items-center"><Calendar className="w-3 h-3 mr-1.5 text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" /> Starting Year</label>
+                            <div className="relative">
+                              <select required value={newEdu.start_year} onChange={(e) => setNewEdu({ ...newEdu, start_year: e.target.value })} className="glass-input w-full px-4 appearance-none !py-4 text-base cursor-pointer">
+                                <option value="">Select Start Year</option>
+                                {[2027, 2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011, 2010].map(y => <option key={y} value={y} className="bg-slate-900">{y}</option>)}
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                            </div>
+                          </div>
+                          <div className="md:col-span-2 space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Institution Name</label>
+                            <div className="relative"><Building2 className="absolute left-4 top-4 w-5 h-5 text-indigo-400" /><input type="text" placeholder="e.g. Adamas University" required value={newEdu.institution} onChange={(e) => setNewEdu({ ...newEdu, institution: e.target.value })} className="glass-input w-full pl-12 !py-4 text-base" /></div>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 flex items-center"><Calendar className="w-3 h-3 mr-1.5 text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" /> Ending / Graduation Year</label>
+                            <div className="relative">
+                              <select required value={newEdu.end_year || newEdu.year} onChange={(e) => setNewEdu({ ...newEdu, end_year: e.target.value, year: e.target.value })} className="glass-input w-full px-4 appearance-none !py-4 text-base cursor-pointer">
+                                <option value="">Select End Year</option>
+                                {[2027, 2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011, 2010].map(y => <option key={y} value={y} className="bg-slate-900">{y}</option>)}
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                            </div>
+                          </div>
+                          <div className="md:col-span-1 space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Percentage / CGPA</label>
+                            <div className="relative"><Activity className="absolute left-4 top-4 w-5 h-5 text-indigo-400" /><input type="number" step="0.01" placeholder="e.g. 85.50" required value={newEdu.score} onChange={(e) => setNewEdu({ ...newEdu, score: e.target.value })} className="glass-input w-full pl-12 !py-4 text-base" /></div>
+                          </div>
                         </div>
-                      </motion.form>
-                    )}
-                  </AnimatePresence>
-                  <div className="space-y-3">
-                    {cvData.education.length === 0 ? <p className="text-center text-slate-500 py-4 italic">No education details added.</p> : cvData.education.map((edu, idx) => (
-                      <div key={idx} className="p-5 rounded-2xl bg-white/[0.03] border border-white/[0.06] border-l-4 border-l-purple-500/50 flex justify-between items-center hover:bg-white/[0.05] transition-colors">
-                        <div><h4 className="font-bold text-lg">{edu.degree}</h4><p className="text-slate-400 font-medium text-sm">{edu.institution}</p><p className="text-xs text-slate-500 mt-1 font-mono">Class of {edu.year} • Score: {edu.score}%</p></div>
-                        <button onClick={() => setCvData({ ...cvData, education: cvData.education.filter(e => e.id !== edu.id) })} className="p-2 text-slate-500 hover:text-rose-400 transition-colors"><X className="w-5 h-5" /></button>
+                        <div className="flex justify-end space-x-4 pt-4">
+                          <button type="button" onClick={() => { setShowEduForm(false); setIsEditingEdu(false); }} className="px-6 py-3 text-sm font-bold text-slate-500 hover:text-slate-300 transition-colors">Discard</button>
+                          <button type="submit" className="btn-premium px-8 py-3 rounded-2xl text-sm font-bold shadow-lg shadow-indigo-500/20">{isEditingEdu ? 'Update Ledger' : 'Save to Ledger'}</button>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </motion.form>
+                  )}
+                </AnimatePresence>
 
+                <div className="space-y-4">
+                  {cvData.education.length === 0 ? (
+                    <div className="text-center py-20 glass-card border-dashed">
+                      <GraduationCap className="w-12 h-12 text-slate-600 mx-auto mb-4 opacity-20" />
+                      <p className="text-slate-500 italic">Your educational records will appear here.</p>
+                    </div>
+                  ) : (
+                    cvData.education.map((edu, idx) => (
+                      <motion.div key={idx} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05 }} className="p-7 rounded-3xl glass-card flex justify-between items-center hover:bg-white/[0.04] transition-all border-l-4 border-l-purple-500/50">
+                        <div className="flex items-center gap-6">
+                          <div className="w-14 h-14 bg-purple-500/10 rounded-2xl flex items-center justify-center border border-purple-500/20">
+                            <BookOpen className="w-7 h-7 text-purple-400" />
+                          </div>
+                          <div>
+                            <h4 className="font-black text-xl text-white mb-1">{edu.degree}</h4>
+                            <p className="text-slate-400 font-bold text-sm tracking-wide">{edu.institution}</p>
+                            <div className="flex items-center gap-3 mt-3">
+                              <span className="bg-white/[0.06] text-slate-500 text-[10px] font-black px-3 py-1 rounded-lg border border-white/[0.08] uppercase">{edu.start_year || 'N/A'} — {edu.end_year || edu.year || 'N/A'}</span>
+                              <span className="bg-emerald-500/10 text-emerald-400 text-[10px] font-black px-3 py-1 rounded-lg border border-emerald-500/20">SCORE: {edu.score}%</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => { setNewEdu(edu); setShowEduForm(true); setIsEditingEdu(true); setEditEduId(edu.id || edu._id); }} className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl hover:bg-indigo-500 hover:text-white transition-all" title="Edit Record"><Edit2 className="w-5 h-5" /></button>
+                          <button onClick={() => handleRemoveEducation(edu.id || edu._id)} className="p-3 bg-rose-500/10 text-rose-400 rounded-xl hover:bg-rose-500 hover:text-white transition-all"><X className="w-5 h-5" /></button>
+                        </div>
+                      </motion.div>
+                    ))
+                  )}
+                </div>
               </motion.div>
             )}
 
-            {/* TAB 2: VERIFIED LEDGER */}
+            {/* TAB: LEDGER */}
             {activeTab === 'ledger' && (
               <motion.div key="ledger" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-4xl space-y-6">
                 <div className="glass-card p-8 flex justify-between items-center bg-gradient-to-r from-emerald-500/[0.06] to-teal-500/[0.06]">
@@ -674,25 +1202,49 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
                   <button onClick={() => setShowExpForm(!showExpForm)} className="btn-premium px-6 py-2 rounded-full text-sm" style={{ background: 'linear-gradient(135deg, #10b981, #14b8a6)' }}>Add New Job</button>
                 </div>
 
-                {/* ADD NEW JOB BLOCK */}
                 <AnimatePresence>
                   {showExpForm && (
                     <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} onSubmit={handleAddExperience} className="mb-2 overflow-hidden">
                       <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.06] space-y-4">
                         <p className="text-xs text-amber-400 font-bold mb-2 flex items-center"><Info className="w-3 h-3 mr-1" /> You must select an existing registered employer for Onboarding Verification.</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="relative"><Briefcase className="absolute left-3 top-3 w-4 h-4 text-slate-500" /><input type="text" placeholder="Job Title" required value={newExp.role} onChange={(e) => setNewExp({ ...newExp, role: e.target.value })} className="glass-input w-full pl-10" /></div>
-                          <div className="relative">
-                            <Building2 className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
-                            <select required value={newExp.firm} onChange={(e) => setNewExp({ ...newExp, firm: e.target.value })} className="glass-input w-full pl-10 appearance-none">
-                              <option value="" disabled>Select Registered Company...</option>
-                              {registeredEmployers.map((emp, i) => <option key={i} value={emp}>{emp}</option>)}
-                            </select>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Job Role / Title</label>
+                            <div className="relative"><Briefcase className="absolute left-4 top-4 w-5 h-5 text-indigo-400" /><input type="text" placeholder="e.g. Senior Developer" required value={newExp.role} onChange={(e) => setNewExp({ ...newExp, role: e.target.value })} className="glass-input w-full pl-12 !py-4 text-base" /></div>
                           </div>
-                          <div className="relative"><Calendar className="absolute left-3 top-3 w-4 h-4 text-slate-500" /><input type="date" required value={newExp.start} onChange={(e) => setNewExp({ ...newExp, start: e.target.value })} className="glass-input w-full pl-10" /></div>
-                          <div className="relative flex items-center space-x-4">
-                            {!newExp.current && <input type="date" required={!newExp.current} value={newExp.end} onChange={(e) => setNewExp({ ...newExp, end: e.target.value })} className="glass-input flex-1" />}
-                            <label className="flex items-center text-sm cursor-pointer whitespace-nowrap"><input type="checkbox" checked={newExp.current} onChange={(e) => setNewExp({ ...newExp, current: e.target.checked, end: '' })} className="mr-2 w-4 h-4 accent-indigo-500" /> Current Job</label>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Registered Employer</label>
+                            <div className="relative">
+                              <Building2 className="absolute left-4 top-4 w-5 h-5 text-indigo-400" />
+                              <select required value={newExp.firm} onChange={(e) => setNewExp({ ...newExp, firm: e.target.value })} className="glass-input w-full pl-12 appearance-none !py-4 text-base cursor-pointer">
+                                <option value="" disabled className="bg-slate-900">Select Company...</option>
+                                {registeredEmployers.map((emp, i) => <option key={i} value={emp} className="bg-slate-900">{emp}</option>)}
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 flex items-center"><Calendar className="w-3 h-3 mr-1.5 text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" /> Start Date</label>
+                            <div className="relative"><input type="date" required value={newExp.start} onChange={(e) => setNewExp({ ...newExp, start: e.target.value })} className="glass-input w-full px-4 !py-4 text-base" /></div>
+                          </div>
+                          <div className="md:col-span-2 space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 flex items-center"><Calendar className="w-3 h-3 mr-1.5 text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" /> End Date / Status</label>
+                            <div className="flex items-center gap-4">
+                              {!newExp.current ? (
+                                <div className="relative flex-1"><input type="date" required={!newExp.current} value={newExp.end} onChange={(e) => setNewExp({ ...newExp, end: e.target.value })} className="glass-input w-full px-4 !py-4 text-base" /></div>
+                              ) : (
+                                <div className="flex-1 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-bold flex items-center"><ShieldCheck className="w-5 h-5 mr-3" /> Still Working at this Company</div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-end pb-1">
+                            <label className="w-full flex items-center justify-between p-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] cursor-pointer hover:bg-white/[0.06] transition-all group">
+                              <span className="text-xs font-bold text-slate-400 group-hover:text-slate-300">Currently Employed</span>
+                              <div className="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" checked={newExp.current} onChange={(e) => setNewExp({ ...newExp, current: e.target.checked, end: '' })} className="sr-only peer" />
+                                <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                              </div>
+                            </label>
                           </div>
                         </div>
                         <div className="flex justify-end space-x-3 mt-4">
@@ -745,13 +1297,13 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
               </motion.div>
             )}
 
-            {/* TAB 3: NOTICEBOARD */}
+            {/* TAB: NOTICEBOARD */}
             {activeTab === 'noticeboard' && (
               <motion.div key="noticeboard" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-4xl space-y-4">
-                {noticeboardJobs.length === 0 ? (
+                {noticeboardJobs.jobs.length === 0 ? (
                   <p className="text-center text-slate-500 py-10 border border-dashed rounded-3xl border-white/[0.08]">No active job postings available.</p>
                 ) : (
-                  noticeboardJobs.map((job, idx) => (
+                  noticeboardJobs.jobs.map((job, idx) => (
                     <motion.div key={idx} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }} className="glass-card p-8">
                       <div className="flex justify-between items-start">
                         <div>
@@ -768,10 +1320,17 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
                     </motion.div>
                   ))
                 )}
+                
+                <Pagination 
+                    currentPage={noticeboardJobs.page}
+                    totalItems={noticeboardJobs.total}
+                    itemsPerPage={30}
+                    onPageChange={(page) => setNoticeboardJobs(p => ({ ...p, page }))}
+                />
               </motion.div>
             )}
 
-            {/* TAB 4: SECURITY & PASSWORD */}
+            {/* TAB: SECURITY */}
             {activeTab === 'security' && (
               <motion.div key="security" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-xl space-y-6">
 
@@ -822,7 +1381,7 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
               </motion.div>
             )}
 
-            {/* TAB 5: NOTIFICATIONS */}
+            {/* TAB: NOTIFICATIONS */}
             {activeTab === 'notifications' && (
               <motion.div key="notifications" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-4xl space-y-6">
                 <div className="glass-card p-8 flex justify-between items-center bg-gradient-to-r from-indigo-500/[0.06] to-purple-500/[0.06]">
@@ -913,63 +1472,83 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
         {/* EDIT PROFILE MODAL */}
         <AnimatePresence>
           {showEditProfileModal && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full max-w-lg p-8 rounded-3xl glass-card shadow-2xl overflow-y-auto max-h-[90vh] !bg-slate-900/95">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-black flex items-center bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent"><Settings className="w-6 h-6 mr-3 text-indigo-400" /> Edit Profile</h2>
-                  <button onClick={() => { setShowEditProfileModal(false); setIsEditingPersonal(false); }} className="p-2 bg-white/[0.06] rounded-full hover:bg-rose-500/20 hover:text-rose-400 transition-colors"><X className="w-5 h-5" /></button>
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="w-full max-w-2xl p-10 rounded-[2.5rem] glass-card shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-y-auto max-h-[90vh] !bg-slate-900/90 border border-white/[0.1]">
+                <div className="flex justify-between items-start mb-10">
+                  <div>
+                    <h2 className="text-3xl font-black flex items-center bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent"><Settings className="w-8 h-8 mr-4 text-indigo-400" /> Edit Profile</h2>
+                    <p className="text-slate-500 text-sm mt-2 font-medium">Keep your professional identity up to date.</p>
+                  </div>
+                  <button onClick={() => { setShowEditProfileModal(false); setIsEditingPersonal(false); }} className="p-3 bg-white/[0.06] rounded-2xl hover:bg-rose-500/20 hover:text-rose-400 transition-all border border-white/[0.08]"><X className="w-6 h-6" /></button>
                 </div>
 
-                <div className="space-y-5">
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Full Name</label>
-                    <input type="text" value={user?.name || ''} disabled className="glass-input w-full opacity-60 cursor-not-allowed font-medium" />
+                <div className="space-y-8">
+                  {/* Name Input */}
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1 flex justify-between items-center">
+                      Full Legal Name
+                      <span className="bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full text-[10px] border border-indigo-500/20">
+                        {user?.name_edits_remaining !== undefined ? `${user.name_edits_remaining} out of 5 edits left` : '5 out of 5 left'}
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-400" />
+                      <input type="text" placeholder="Your full name" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="glass-input w-full pl-14 !py-5 text-lg font-bold shadow-inner" />
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Email (Primary UUID)</label>
-                    <input type="email" value={user?.id || ''} disabled className="glass-input w-full opacity-60 cursor-not-allowed font-medium text-indigo-400" />
+
+                  {/* Email & UID Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Email ID</label>
+                      <input type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} className="glass-input w-full !py-4 text-base font-bold text-indigo-400 shadow-inner" />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Employee Unique ID</label>
+                      <input type="text" value={user?.id || ''} disabled className="glass-input w-full opacity-40 cursor-not-allowed !py-4 text-base font-mono font-bold text-emerald-400 bg-black/20" />
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Gender (Optional)</label>
-                    <div className="flex p-1 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+
+                  {/* Gender Toggle */}
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Gender</label>
+                    <div className="flex p-2 rounded-2xl bg-black/30 border border-white/[0.08] gap-2">
                       {['Male', 'Female', 'Transgender'].map(g => (
-                        <button type="button" key={g} onClick={() => setPersonalInfo({ ...personalInfo, gender: g })} className={`flex-1 py-2 text-[10px] md:text-sm rounded-lg font-bold transition-all ${personalInfo.gender === g ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:bg-white/[0.06]'}`}>
+                        <button type="button" key={g} onClick={() => setEditForm({ ...editForm, gender: g })} className={`flex-1 py-3 text-sm rounded-xl font-black transition-all duration-300 ${editForm.gender === g ? 'bg-indigo-600 text-white shadow-[0_5px_15px_rgba(79,70,229,0.4)] translate-y-[-2px]' : 'text-slate-500 hover:bg-white/[0.06] hover:text-slate-300'}`}>
                           {g}
                         </button>
                       ))}
                     </div>
                   </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Date of Birth</label>
-                    <input type="date" value={personalInfo.dob} onChange={(e) => setPersonalInfo({ ...personalInfo, dob: e.target.value })} className="glass-input w-full [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Mobile Number</label>
-                    <div className="flex gap-2">
-                      <select value={personalInfo.countryCode} onChange={(e) => setPersonalInfo({ ...personalInfo, countryCode: e.target.value })} className="glass-input w-28 appearance-none text-center">
-                        {['+91', '+1', '+44', '+61', '+81', '+86', '+49', '+33', '+971'].map(code => <option key={code} value={code}>{code}</option>)}
-                      </select>
-                      <div className="relative flex-1">
-                        <Phone className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
-                        <input
-                          type="text"
-                          placeholder="10-digit mobile number"
-                          maxLength={10}
-                          value={personalInfo.mobile}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/[^0-9]/g, '');
-                            setPersonalInfo({ ...personalInfo, mobile: val });
-                          }}
-                          className="glass-input w-full pl-10"
-                        />
-                      </div>
+
+                  {/* DOB Row */}
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1 flex justify-between items-center">
+                      Date of Birth
+                      <span className="text-indigo-400 text-[10px]">
+                        {user?.dob_edits_remaining !== undefined ? `${user.dob_edits_remaining} out of 3 left` : '3 out of 3 left'}
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-400" />
+                      <input type="date" value={editForm.dob} onChange={(e) => setEditForm({ ...editForm, dob: e.target.value })} className="glass-input w-full pl-14 !py-4 text-base font-bold [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
                     </div>
+                  </div>
+
+                  {/* Phone Row */}
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Mobile number</label>
+                    <PhoneInput
+                      ref={phoneInputRef}
+                      value={editForm.phone}
+                      onChange={(number) => setEditForm(prev => ({ ...prev, phone: number }))}
+                    />
                   </div>
                 </div>
 
-                <div className="flex justify-end space-x-3 mt-8 pt-6 border-t border-white/[0.06]">
-                  <button onClick={() => { setShowEditProfileModal(false); setIsEditingPersonal(false); }} className="px-5 py-2.5 text-sm text-slate-500 hover:text-slate-300 transition-colors rounded-xl">Cancel</button>
-                  <button onClick={() => { handleSavePersonalInfo(); setShowEditProfileModal(false); }} className="btn-premium px-6 py-2.5 rounded-xl text-sm flex items-center"><Save className="w-4 h-4 mr-2" /> Save Changes</button>
+                <div className="flex justify-end space-x-4 mt-12 pt-8 border-t border-white/[0.1]">
+                  <button onClick={() => setShowEditProfileModal(false)} className="px-8 py-4 text-sm font-black text-slate-500 hover:text-slate-200 transition-colors">Cancel Changes</button>
+                  <button onClick={handleUpdateProfileV2} className="btn-premium px-10 py-4 rounded-2xl text-sm font-black flex items-center shadow-[0_10px_25px_rgba(79,70,229,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all" style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)' }}><Save className="w-5 h-5 mr-3" /> Commit Changes</button>
                 </div>
               </motion.div>
             </div>
@@ -1012,8 +1591,47 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
             </div>
           )}
         </AnimatePresence>
-
       </div>
+      {/* APPROVAL REQUEST MODAL */}
+      <AnimatePresence>
+        {showApprovalModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-[#0a0f1d]/90 backdrop-blur-md">
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="glass-card max-w-md w-full p-8 border-rose-500/30">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold flex items-center text-rose-400">
+                  <AlertTriangle className="mr-3 w-5 h-5" /> Edit Limit Exhausted
+                </h3>
+                <button onClick={() => setShowApprovalModal(false)} className="text-slate-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+              </div>
+
+              <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+                You have reached the maximum allowed edits for these fields (Name/DOB). To proceed with these changes, please submit an approval request to the system administrator.
+              </p>
+
+              <div className="space-y-4 mb-8">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Reason for Update</label>
+                <textarea
+                  className="glass-input w-full min-h-[100px] text-sm py-3 px-4"
+                  placeholder="Explain why these changes are necessary (e.g., Typo correction, Legal name change)..."
+                  value={approvalReason}
+                  onChange={(e) => setApprovalReason(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-4">
+                <button onClick={() => setShowApprovalModal(false)} className="flex-1 px-4 py-3 rounded-xl border border-white/10 text-slate-400 font-bold hover:bg-white/5 transition-all text-sm">Cancel</button>
+                <button
+                  onClick={submitApprovalRequest}
+                  disabled={isSubmittingApproval || !approvalReason.trim()}
+                  className="flex-1 px-4 py-3 rounded-xl bg-rose-500 text-white font-bold hover:bg-rose-600 transition-all text-sm disabled:opacity-50 flex items-center justify-center"
+                >
+                  {isSubmittingApproval ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : "Request Approval"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

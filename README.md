@@ -1,34 +1,40 @@
 # CETS - Blockchain-Verified Career Tracking & AI-Secured HR Ecosystem
 
-CETS (Career Empowerment & Tracking System) is a high-performance HR management ecosystem designed for the modern era. It combines **Blockchain-Verified credentials**, **Generative AI for skill verification**, and a **Cognitive AI Firewall** to create a secure, tamper-proof, and premium recruitment experience.
+CETS (Career Empowerment & Tracking System) is a high-performance HR management ecosystem natively designed to bridge the trust gap in the modern era. It combines **Conceptual Blockchain-Verified credentials**, **Generative AI strictly built for candidate evaluation**, and a robust **Cognitive AI Firewall** to curate a secure, tamper-proof, and premium recruitment infrastructure.
 
 ---
 
-## 🚀 Core Features
+## 🚀 Core Architectural Features
 
+- **Strict Identity Silos**: 
+  - Entirely segmented authentication walls explicitly blocking cross-contamination between `Professional`, `Organization`, and `System Admin` portals at both the client and server levels.
 - **Double-Layer Verification**: 
-  - **Blockchain Ledger**: All professional history (onboarding, relieving) is hashed and stored on a conceptual blockchain ledger for immutable verification.
-  - **AI Skill Quiz (GROQ)**: Generative AI creates real-time, adaptive quizzes to verify candidate skills instantly.
-- **Cognitive AI Firewall**: A behavioral and volumetric protection layer using Machine Learning (Scikit-Learn) to detect and block intrusion attempts in real-time.
-- **Premium Dark Aesthetics**: A sleek, high-fidelity dark UI built with Framer Motion, Tsparticles, and Recharts for a futuristic look and feel.
-- **Real-Time Data Overwatch**: Admin dashboard features live traffic monitoring, threat logging, and a global user registry.
-- **Zero-Knowledge Architecture**: Secure data handling with P2P messaging and encrypted profile reveals.
+  - **Immutable Ledger Emulation**: All professional history (onboarding, relieving) is cryptographically hashed (SHA-256) and appended to a verifiable, read-only ledger.
+  - **AI Cognitive Profiling (GROQ)**: Embedded Generative AI triggers adaptive, context-aware skill verification quizzes.
+- **Cognitive AI Firewall**: 
+  - An underlying volumetric protection tier employing Scikit-Learn constraints alongside an interactive 3x3 randomized Icon Matrix CAPTCHA, completely locking out automated credential stuffing.
+- **Premium User Experience**: 
+  - Unparalleled high-fidelity glassmorphism built with absolute precision applying Framer Motion, Tsparticles, and Lucide abstractions overlaying a dynamically scaling Tailwind 4 + Vite stack.
+- **Real-Time Organization Sync**: 
+  - Granular dashboards displaying multi-factor workforce analytics (via Recharts and Chart.js v4), live threat logging, and an instantly synchronizable candidate registry.
 
 ---
 
-## 🏗️ Technical Architecture
+## 🏗️ Technical Stack
 
 ### Frontend (React + Vite)
-- **Styling**: Vanilla CSS with Glassmorphism & Framer Motion animations.
-- **Charts**: Recharts for live traffic and workforce analytics.
-- **Security**: CAPTCHA system and Zero-Knowledge reveal protocols.
-- **PDF Export**: html2pdf.js for generating secure CVs.
+- **Framework**: React 19 driven by Vite 7 with absolute Hot Module Reloading.
+- **Styling**: TailwindCSS V4 running native PostCSS alongside pure Glassmorphic CSS attributes.
+- **Animations/Visuals**: Framer Motion (layout scale physics), AOS (scroll detection), and TS-Particles.
+- **Form Controls**: SweetAlert2 (Zero-Knowledge alerts) and Intl-Tel-Input.
+- **Routing**: React Router DOM (v7).
 
 ### Backend (Python + FastAPI)
-- **API**: High-performance asynchronous endpoints via FastAPI.
-- **Database**: MongoDB (Motor) for scalable document storage with TTL indexing.
-- **Caching**: Redis for rapid lookup of registered employers and session states.
-- **AI Engine**: Groq SDK for Generative AI and Scikit-Learn (Joblib) for the Cognitive Firewall.
+- **API Engine**: High-performance asynchronous endpoints managed strictly by FastAPI.
+- **Database & ODM**: MongoDB integrated dynamically via Motor (asynchronous bridging) and PyMongo.
+- **Caching Ledger**: Redis pipelines guaranteeing zero-latency session continuity.
+- **Machine Learning**: Scikit-Learn, NumPy, and Pandas generating behavioral metrics.
+- **Security**: Complete JWT tokenization mapped to strictly-typed Pydantic schemas encasing bcrypt salted passlib hashes.
 
 ---
 
@@ -40,29 +46,28 @@ CETS (Career Empowerment & Tracking System) is a high-performance HR management 
 1. **Python**: Download and install [Python 3.10+](https://www.python.org/downloads/windows/). Ensure "Add Python to PATH" is checked.
 2. **Node.js**: Download and install [Node.js v18+](https://nodejs.org/).
 3. **MongoDB**: Install [MongoDB Community Server](https://www.mongodb.com/try/download/community) or use [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
-4. **Redis**: Download [Redis for Windows](https://github.com/tporadowski/redis/releases) or use Docker.
+4. **Redis**: Download [Redis for Windows](https://github.com/tporadowski/redis/releases) or bind it universally using Docker.
 
-#### **macOS**
-1. **Homebrew**: If not installed, run: `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
-2. **Python**: `brew install python` (v3.10+)
-3. **Node.js**: `brew install node` (v18+)
-4. **MongoDB**: `brew tap mongodb/brew && brew install mongodb-community`
-5. **Redis**: `brew install redis`
+#### **macOS / Linux**
+1. **Python**: `brew install python` (v3.10+)
+2. **Node.js**: `brew install node` (v18+)
+3. **MongoDB**: `brew tap mongodb/brew && brew install mongodb-community`
+4. **Redis**: `brew install redis`
 
 ---
 
-## 🛠️ Installation & Setup
+## 🛠️ Installation & Rapid Deployment
 
-### 1. Clone the Repository
+### 1. Clone the Ecosystem
 ```bash
 git clone https://github.com/your-repo/cets.git
 cd cets
 ```
 
-### 2. Backend Configuration
-Navigate to the backend directory and set up your environment.
+### 2. Backend Initialization
+Deploy your python Virtual Environment and install matrix handlers.
 
-**Windows (PowerShell/CMD):**
+**Windows (PowerShell):**
 ```powershell
 cd backend
 python -m venv venv
@@ -78,24 +83,22 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-#### **Environment Variables**
-Create a `.env` file in the `backend/` directory with the following keys:
+#### **Environment Keys**
+Establish a `.env` file in your `backend/` directory exposing these attributes:
 ```env
 MONGO_URL=mongodb://localhost:27017/cets_database
 JWT_SECRET=your_super_secret_jwt_key
 GROQ_API_KEY=your_groq_api_key_here
-OPENCLAW_API_KEY=your_openclaw_key
-MCP_TOKEN=your_mcp_token
 REDIS_URL=redis://localhost:6379
 ```
 
-#### **Run the Backend**
+#### **Spin up Uvicorn Engine**
 ```bash
 python main.py
 ```
 
-### 3. Frontend Configuration
-Open a new terminal window for the frontend.
+### 3. Frontend Initialization
+Boot a secondary Terminal to deploy the Vite bundler.
 
 ```bash
 cd frontend
@@ -105,34 +108,36 @@ npm run dev
 
 ---
 
-## 📂 Project Structure
+## 📂 Project Tree map
 
 ```text
 ├── backend/
-│   ├── main.py              # Main FastAPI application entry point
-│   ├── models/              # Pydantic models for data validation
-│   ├── routes/              # API route handlers
-│   ├── services/            # Business logic (AI, Blockchain, Email)
-│   ├── sync_database.py     # Database synchronization and mock data generator
-│   └── requirements.txt     # Backend dependencies
+│   ├── main.py              # Root FastAPI cluster mapping models & active routes
+│   ├── models/              # Pydantic schema validation objects
+│   ├── routes/              # Explicit API routing (Auth, Users, Analytics)
+│   ├── services/            # Microservices (GROQ integration, Redis execution)
+│   ├── sync_database.py     # Structural schema synchronizer
+│   └── requirements.txt     # Locked production dependencies
 ├── frontend/
 │   ├── src/
-│   │   ├── components/      # UI Components (Dashboards, Auth, Landing)
-│   │   ├── App.jsx          # Root component and routing
-│   │   └── main.jsx         # Entry point
-│   ├── package.json         # Frontend dependencies
-│   └── vite.config.js       # Vite configuration
-└── README.md                # Project documentation
+│   │   ├── components/      # Glassmorphism encapsulated interface modules
+│   │   ├── App.jsx          # Secure view renderer enforcing Auth endpoints
+│   │   ├── index.css        # Core stylesheet integrating absolute theme configurations
+│   │   └── main.jsx         # Vite injection target
+│   ├── package.json         # Explicit layout dependencies (AOS, Motion, Charts)
+│   └── vite.config.js       # Vite build layer map
+└── README.md                # System Overview
 ```
 
 ---
 
-## 🔍 Troubleshooting
+## 🔍 Diagnostics
 
-- **Redis Connection Error**: Ensure the Redis server is running. On Windows, run `redis-server`. On macOS, run `brew services start redis`.
-- **GROQ API Missing**: The AI skill verification requires a valid GROQ key. If missing, the feature will gracefully degrade, but verification will fail to start.
-- **MongoDB Connection**: If using Atlas, ensure your IP address is whitelisted in the MongoDB Atlas dashboard.
-- **Node Modules Error**: If you face issues after updating, try deleting `node_modules` and `package-lock.json` in the `frontend/` folder, then run `npm install` again.
+- **Redis Handshake Refused**: Ensure the background active memory tier is running. (Windows: `redis-server` / macOS: `brew services run redis`).
+- **GROQ Module Silent Failures**: AI skill integration absolutely requires a validated GROQ inference key. Check `.env`.
+- **Database Abort Trace**: Double check your MongoDB daemon. If hosted on Atlas, guarantee your specific IPv4 mapping is explicitly whitelisted.
+- **Node Compilation Halt**: In severe package desync scenarios, manually purge `node_modules` and `package-lock.json` directly from the `frontend/` scope and reboot `npm install`.
 
 ---
-*Built with ❤️ for the next generation of HR and Career Security.*
+
+*Built for absolute structural integrity. Secured by SHA-256.*

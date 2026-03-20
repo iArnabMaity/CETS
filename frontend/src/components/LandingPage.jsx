@@ -1,106 +1,69 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
-import { Activity, Users, ArrowRight, ChevronUp, Lock, Hexagon, Database, X, Shield, CheckCircle, Zap, Sun, Moon, User, Eye, EyeOff } from 'lucide-react';
-import ParticleBackground from './ParticleBackground';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion'; import axios from 'axios';
+import { Building2, LogOut, Users, Briefcase, FileSignature, PieChart, Lock, ShieldCheck, Bell, Plus, X, Eye, CheckCircle, XCircle, Calendar, MapPin, IndianRupee, KeyRound, Minus, User, Phone, Check, Save, Moon, Sun, Settings, ChevronDown, ChevronUp, MessageSquare, Send, Hexagon, Activity, Code, BookOpen, GraduationCap, Info, AlertOctagon, Download, Loader2, Sparkles, EyeOff, Smartphone, Tablet, Laptop, Monitor, Edit2, Shield, Search, Briefcase as Portfolio, Globe, Zap, ArrowRight, Database } from 'lucide-react';
+import Swal from 'sweetalert2';
+import AOS from 'aos';
+import 'aos/dist/aos.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000';
 
-export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
+export default function LandingPage({ onNavigateToRoleSelection, onNavigateToAdminAuth, setUser, darkMode }) {
 
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  useEffect(() => {
+    AOS.init({ duration: 1000, once: false });
+  }, []);
 
   // --- Modals State ---
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
 
-  // --- Admin Login State ---
-  const [showAdminModal, setShowAdminModal] = useState(false);
-  const [adminEmail, setAdminEmail] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
-  const [adminLoading, setAdminLoading] = useState(false);
-  const [adminError, setAdminError] = useState('');
-  const [showAdminPassword, setShowAdminPassword] = useState(false);
-  const [adminCaptcha, setAdminCaptcha] = useState({ q: '', a: 0 });
-  const [adminCaptchaInput, setAdminCaptchaInput] = useState('');
 
-  // Generate a simple math captcha for admin login
-  const generateAdminCaptcha = () => {
-    const num1 = Math.floor(Math.random() * 10) + 1;
-    const num2 = Math.floor(Math.random() * 10) + 1;
-    setAdminCaptcha({ q: `${num1} + ${num2}`, a: num1 + num2 });
-    setAdminCaptchaInput('');
-  };
-
-  const handleShowAdminModal = () => {
-    generateAdminCaptcha();
-    setShowAdminModal(true);
-  };
-
-  const handleAdminLogin = async (e) => {
-    e.preventDefault();
-    setAdminLoading(true);
-    setAdminError('');
-    try {
-      const response = await axios.post(`${API_BASE}/api/auth/login`, {
-        email: adminEmail,
-        password: adminPassword,
-        latency: 45.0, packet_size: 3000.0, login_attempts: 1, error_rate: 0.01, country: "India"
-      });
-      if (response.data.role !== 'admin') {
-        setAdminError('ACCESS DENIED: This portal is restricted to System Administrators only.');
-        setAdminLoading(false);
-        return;
-      }
-      setUser(response.data);
-    } catch (err) {
-      if (err.response?.status === 403) setAdminError('CONNECTION TERMINATED: Firewall blocked this request.');
-      else setAdminError(err.response?.data?.detail || 'Invalid credentials or connection error.');
-    } finally {
-      setAdminLoading(false);
-    }
-  };
 
   return (
-    <div className="relative min-h-screen overflow-hidden selection:bg-indigo-500/30 transition-colors duration-500 bg-[#020817] text-slate-100">
+    <div className="relative min-h-screen overflow-hidden selection:bg-indigo-500/30 transition-colors duration-500 bg-transparent text-slate-100">
 
-      {/* 1. Magical Glowing Background Blob & Particles */}
+      {/* 1. Magical Glowing Orbs (Handled by App.jsx particles, adding extra depth here) */}
+      {/* 1. Magical Glowing Orbs v2 */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 z-0 opacity-60">
-          <ParticleBackground />
-        </div>
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 100, repeat: Infinity, ease: "linear" }}
-          className="absolute -top-[30%] -left-[10%] w-[70vw] h-[70vw] filter blur-[120px] rounded-full bg-indigo-600/20 mix-blend-screen opacity-70" />
-        <motion.div animate={{ rotate: -360 }} transition={{ duration: 100, repeat: Infinity, ease: "linear" }}
-          className="absolute -bottom-[30%] -right-[10%] w-[70vw] h-[70vw] filter blur-[120px] rounded-full bg-purple-600/20 mix-blend-screen opacity-70" />
+        <div className="orb-v2 w-[600px] h-[600px] -top-48 -left-48 bg-indigo-500/20" style={{ animationDelay: '0s' }} />
+        <div className="orb-v2 w-[500px] h-[500px] top-1/2 -right-24 bg-rose-500/10" style={{ animationDelay: '-10s' }} />
+        <div className="orb-v2 w-[700px] h-[700px] -bottom-48 left-1/4 bg-cyan-500/10" style={{ animationDelay: '-5s' }} />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.05),transparent_70%)]" />
       </div>
 
       {/* 2. Sticky Glassmorphism Navbar */}
-      <nav className="fixed top-0 w-full z-40 border-b backdrop-blur-2xl transition-all duration-500 bg-slate-950/50 border-slate-800">
+      <nav className="fixed top-0 w-full z-40 border-b glass-header transition-all duration-500">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Hexagon className="w-8 h-8 text-indigo-400 fill-indigo-400/20" />
-            <span className="text-2xl font-black tracking-tighter text-white">CETS</span>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          >
+            <Hexagon className="w-6 h-6 text-indigo-400 fill-indigo-400/20" />
+            <span className="text-xl font-black tracking-tighter text-white">CETS</span>
+          </motion.div>
           <div className="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-400">
-            <a href="#about" className="transition-colors hover:text-indigo-400">Platform</a>
-            <a href="#features" className="transition-colors hover:text-indigo-400">Features</a>
-            <a href="#security" className="transition-colors hover:text-indigo-400">Security</a>
+            <a href="#about" className="transition-all hover:text-indigo-400 hover:tracking-wide">Platform</a>
+            <a href="#features" className="transition-all hover:text-indigo-400 hover:tracking-wide">Features</a>
+            <a href="#security" className="transition-all hover:text-indigo-400 hover:tracking-wide">Security</a>
           </div>
           <div className="flex items-center space-x-4">
             <button
-              onClick={onNavigateToAuth}
-              className="group relative inline-flex items-center justify-center px-6 py-2.5 text-sm font-bold text-white transition-all duration-300 bg-indigo-600 rounded-full active:scale-95 hover:bg-indigo-500 hover:shadow-lg hover:shadow-indigo-500/20"
+              onClick={onNavigateToRoleSelection}
+              className="btn-premium flex items-center gap-2 group"
             >
-              Register / Login
-              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              Get Started
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
         </div>
       </nav>
 
       {/* 3. Hero Section */}
-      <section className="relative pt-40 pb-20 lg:pt-48 lg:pb-32 px-6 max-w-7xl mx-auto flex flex-col items-center text-center z-10">
+      <section className="relative pt-40 pb-20 lg:pt-48 lg:pb-32 px-6 max-w-7xl mx-auto flex flex-col items-center text-center z-10" data-aos="fade-up">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
 
           <span className={`inline-flex items-center px-3 py-1 text-sm font-bold rounded-full mb-6 shadow-sm border ${darkMode ? 'text-indigo-300 bg-indigo-500/10 border-indigo-500/20' : 'text-indigo-700 bg-indigo-100/80 border-indigo-200'}`}>
@@ -108,20 +71,33 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
             v2.0 Blockchain Ledger Online
           </span>
 
-          <h1 className={`text-5xl md:text-7xl font-black tracking-tighter mb-6 leading-tight ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+          <h1 className={`text-4xl md:text-6xl font-black tracking-tight mb-6 leading-tight ${darkMode ? 'text-white' : 'text-slate-900'}`}>
             The Future of <br className="hidden md:block" />
-            <span className={`text-transparent bg-clip-text bg-gradient-to-r ${darkMode ? 'from-indigo-400 via-purple-400 to-pink-400' : 'from-indigo-600 via-purple-600 to-pink-600'}`}>
+            <span className="text-vibrant text-glow">
               Verified Career Tracking
             </span>
           </h1>
 
-          <p className="max-w-2xl mx-auto text-lg md:text-xl mb-10 leading-relaxed font-medium text-slate-400">
+          <p className="max-w-xl mx-auto text-base md:text-lg mb-10 leading-relaxed font-medium text-slate-400">
             Eliminate resume fraud. Streamline corporate onboarding. CETS provides a cryptographically secure, immutable ledger bridging top-tier talent with enterprise employers.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button onClick={onNavigateToAuth} className="w-full sm:w-auto px-8 py-4 font-bold rounded-full hover:scale-105 transition-all shadow-xl active:scale-95 text-slate-900 bg-white shadow-white/10">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+            <button
+              onClick={onNavigateToRoleSelection}
+              className="btn-vibrant w-full sm:w-auto px-8 py-4 text-base font-bold rounded-xl text-white shadow-lg shadow-indigo-500/20"
+            >
               Join the Ecosystem
+            </button>
+            <button
+              href="#about"
+              className="w-full sm:w-auto px-8 py-4 text-base font-bold rounded-xl border border-slate-700 bg-slate-900/50 text-slate-300 hover:bg-slate-800 transition-all"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
+              Learn More
             </button>
           </div>
 
@@ -129,24 +105,37 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
       </section>
 
       {/* --- PLATFORM SECTION --- */}
-      <section id="about" className="max-w-7xl mx-auto px-6 py-20 z-10 relative">
+      <section id="about" className="max-w-7xl mx-auto px-6 py-20 z-10 relative" data-aos="fade-right">
         <div className="flex flex-col md:flex-row items-center gap-12">
           <div className="md:w-1/2">
             <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
-              <h2 className="text-3xl md:text-5xl font-black mb-6 text-white">Build Trust with <br /> <span className="text-indigo-500">Immutable Proof</span></h2>
-              <p className="text-lg mb-6 leading-relaxed text-slate-400">The CETS platform represents a paradigm shift in career verification. Instead of relying on easily forged PDF resumes or unverified LinkedIn profiles, we leverage blockchain architecture to create cryptographic proofs of employment and skills.</p>
+              <h2 className="text-3xl md:text-4xl font-black mb-6 leading-tight text-white">
+                Build Trust with <br />
+                <span className="text-vibrant-indigo text-glow">Immutable Proof</span>
+              </h2>
+              <p className="text-base mb-6 leading-relaxed text-slate-400">The CETS platform represents a paradigm shift in career verification. Instead of relying on easily forged PDF resumes or unverified LinkedIn profiles, we leverage blockchain architecture to create cryptographic proofs of employment and skills.</p>
               <ul className="space-y-4 text-slate-300">
                 {['Decentralized Identity Management', 'Smart Contract Based Validations', 'Real-time Organization Sync'].map((item, idx) => (
-                  <li key={idx} className="flex items-center"><CheckCircle className="w-5 h-5 text-indigo-500 mr-3" /> {item}</li>
+                  <li key={idx} className="flex items-center text-slate-tint"><CheckCircle className="w-5 h-5 text-indigo-400 mr-3" /> {item}</li>
                 ))}
               </ul>
             </motion.div>
           </div>
           <div className="md:w-1/2 w-full">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} className="p-8 rounded-3xl border bg-slate-900/50 border-slate-800 shadow-2xl">
-              <div className="aspect-video rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex flex-col items-center justify-center p-6 text-center border border-indigo-500/30">
-                <Hexagon className="w-16 h-16 text-indigo-500 mb-4 animate-[spin_10s_linear_infinite]" />
-                <p className="font-mono text-sm text-indigo-300">BLOCK_HEIGHT: 8,495,201<br />LAST_HASH: 0x4f...92a<br />NETWORK_STATUS: OPTIMAL</p>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="glass-card-premium p-8 rounded-3xl relative overflow-hidden group"
+            >
+              <div className="aspect-video rounded-xl bg-gradient-to-br from-indigo-500/20 via-purple-500/10 to-transparent flex flex-col items-center justify-center p-8 text-center border border-indigo-500/30 group-hover:border-indigo-500/50 transition-colors">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_var(--x)_var(--y),rgba(99,102,241,0.15),transparent_40%)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Hexagon className="w-20 h-20 text-indigo-400 mb-6 animate-[slow-spin_15s_linear_infinite]" />
+                <p className="font-mono text-xs tracking-widest text-indigo-300/80 uppercase">
+                  Protocols: ACTIVE<br />
+                  Block_Height: 8,495,201<br />
+                  Network_Integrity: 99.9%
+                </p>
               </div>
             </motion.div>
           </div>
@@ -156,11 +145,11 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
       {/* --- FEATURES SECTION --- */}
       <section id="features" className="py-20 relative z-10 border-y bg-slate-900/20 border-slate-800">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-black mb-4 text-white">Enterprise-Grade <span className="text-purple-500">Features</span></h2>
-            <p className="max-w-2xl mx-auto text-lg text-slate-400">Designed for scale, built for security. Everything you need to manage your organization's talent truth.</p>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-black mb-4 text-white">Enterprise-Grade <span className="text-vibrant-rose text-glow">Features</span></h2>
+            <p className="max-w-xl mx-auto text-base text-slate-400">Designed for scale, built for security. Everything you need to manage your organization's talent truth.</p>
           </div>
-          <motion.div 
+          <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: "-100px" }}
@@ -178,18 +167,23 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
               { icon: Lock, title: "Tamper-Proof Records", desc: "Once a record is committed to the CETS ledger, it cannot be altered or deleted by malicious actors." },
               { icon: Database, title: "API Integration", desc: "Seamlessly integrate our verification endpoints into your existing HR systems (Workday, SAP, etc)." }
             ].map((f, i) => (
-              <motion.div 
+              <motion.div
                 variants={{
-                  hidden: { opacity: 0, y: 30 },
-                  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+                  hidden: { opacity: 0, y: 20 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
                 }}
-                whileHover={{ y: -10, transition: { duration: 0.2 } }}
-                key={i} 
-                className="p-8 rounded-3xl border bg-slate-950/50 border-slate-800 hover:bg-slate-900 transition-colors shadow-lg hover:shadow-indigo-500/10 cursor-default"
+                whileHover={{
+                  y: -8,
+                  boxShadow: "0 15px 30px rgba(99, 102, 241, 0.1)",
+                }}
+                key={i}
+                className="glass-card-premium p-8 group cursor-default h-full"
               >
-                <f.icon className="w-10 h-10 mb-6 text-purple-400" />
-                <h3 className="text-xl font-bold mb-3 text-white">{f.title}</h3>
-                <p className="leading-relaxed text-slate-400">{f.desc}</p>
+                <div className="w-14 h-14 rounded-xl bg-white/5 flex items-center justify-center mb-6 group-hover:bg-indigo-500/20 transition-all duration-500 group-hover:scale-110 shadow-lg shadow-black/10">
+                  <f.icon className="w-7 h-7 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
+                </div>
+                <h3 className="text-xl font-bold mb-3 text-white group-hover:text-vibrant-rose transition-colors tracking-tight">{f.title}</h3>
+                <p className="leading-relaxed text-slate-400 text-sm group-hover:text-slate-300 transition-colors">{f.desc}</p>
               </motion.div>
             ))}
           </motion.div>
@@ -197,7 +191,7 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
       </section>
 
       {/* --- SECURITY SECTION --- */}
-      <section id="security" className="max-w-7xl mx-auto px-6 py-20 z-10 relative">
+      <section id="security" className="max-w-7xl mx-auto px-6 py-20 z-10 relative" data-aos="fade-left">
         <div className="flex flex-col md:flex-row-reverse items-center gap-12">
           <div className="md:w-1/2">
             <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
@@ -205,8 +199,8 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
                 <Shield className="w-4 h-4 mr-2" />
                 Military-Grade Encryption
               </div>
-              <h2 className="text-3xl md:text-5xl font-black mb-6 text-white">Zero-Knowledge <br /> <span className="text-rose-500">Data Architecture</span></h2>
-              <p className="text-lg mb-6 leading-relaxed text-slate-400">Your personal data never leaves your control. We utilize Zero-Knowledge Proofs (zk-SNARKs) to verify your credentials to employers without ever revealing the underlying sensitive information.</p>
+              <h2 className="text-3xl md:text-4xl font-black mb-6 text-white leading-tight">Zero-Knowledge <br /> <span className="text-vibrant-rose text-glow">Data Architecture</span></h2>
+              <p className="text-base mb-6 leading-relaxed text-slate-400">Your personal data never leaves your control. We utilize Zero-Knowledge Proofs (zk-SNARKs) to verify your credentials to employers without ever revealing the underlying sensitive information.</p>
               <ul className="space-y-4 text-slate-300">
                 <li className="flex items-center"><CheckCircle className="w-5 h-5 text-rose-500 mr-3" /> SOC2 Type II Certified</li>
                 <li className="flex items-center"><CheckCircle className="w-5 h-5 text-rose-500 mr-3" /> AES-256 Data-at-Rest Encryption</li>
@@ -233,13 +227,13 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
       </section>
 
       {/* --- WHO CAN JOIN SECTION --- */}
-      <section className="py-24 relative z-10 border-y bg-slate-950/40 border-slate-800">
+      <section className="py-16 relative z-10 border-y bg-slate-950/40 border-slate-800">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-black mb-4 text-white">Who Can <span className="text-emerald-500">Join?</span></h2>
-            <p className="max-w-2xl mx-auto text-lg text-slate-400">CETS is designed for two core pillars of the workforce ecosystem.</p>
+          <div className="text-center mb-12" data-aos="fade-up">
+            <h2 className="text-3xl md:text-4xl font-black mb-4 text-white">Who Can <span className="text-vibrant-emerald text-glow">Join?</span></h2>
+            <p className="max-w-xl mx-auto text-base text-slate-400">CETS is designed for two core pillars of the workforce ecosystem.</p>
           </div>
-          <motion.div 
+          <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: "-100px" }}
@@ -252,41 +246,41 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
             }}
             className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto"
           >
-            <motion.div 
+            <motion.div
               variants={{
                 hidden: { opacity: 0, x: -30 },
                 visible: { opacity: 1, x: 0, transition: { duration: 0.8 } }
               }}
-              whileHover={{ scale: 1.02 }}
-              className="p-8 rounded-3xl border bg-indigo-500/[0.06] border-indigo-500/20 hover:border-indigo-400/40 transition-all shadow-xl"
+              whileHover={{ y: -8, scale: 1.02 }}
+              className="p-10 rounded-3xl border bg-gradient-to-br from-indigo-500/[0.1] to-purple-500/[0.05] border-indigo-500/30 hover:border-indigo-400/60 transition-all shadow-2xl shadow-indigo-500/10 group h-full"
             >
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6 bg-indigo-500/10">
-                <Users className="w-7 h-7 text-indigo-400" />
+              <div className="w-20 h-20 rounded-2xl flex items-center justify-center mb-8 bg-indigo-500/20 group-hover:scale-110 transition-transform shadow-lg shadow-indigo-500/20">
+                <Users className="w-10 h-10 text-indigo-400" />
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-white">Employees & Professionals</h3>
-              <p className="leading-relaxed mb-4 text-slate-400">Build a tamper-proof professional identity. Your skills, experience, and achievements are cryptographically sealed — giving you a verifiable career passport that no one can forge.</p>
-              <ul className="space-y-2 text-sm text-slate-300">
+              <h3 className="text-2xl font-black mb-3 text-white group-hover:text-vibrant-indigo transition-all">Employees & Professionals</h3>
+              <p className="leading-relaxed mb-4 text-slate-400 text-base">Build a tamper-proof professional identity. Your skills, experience, and achievements are cryptographically sealed — giving you a verifiable career passport that no one can forge.</p>
+              <ul className="space-y-3 text-sm text-slate-400">
                 {['Career history with blockchain-backed proof', 'AI-powered skill recommendations', 'One-click verified resume export'].map((item, i) => (
-                  <li key={i} className="flex items-center"><CheckCircle className="w-4 h-4 text-indigo-500 mr-2 flex-shrink-0" />{item}</li>
+                  <li key={i} className="flex items-center"><CheckCircle className="w-5 h-5 text-indigo-500 mr-3 flex-shrink-0" />{item}</li>
                 ))}
               </ul>
             </motion.div>
-            <motion.div 
+            <motion.div
               variants={{
                 hidden: { opacity: 0, x: 30 },
                 visible: { opacity: 1, x: 0, transition: { duration: 0.8 } }
               }}
-              whileHover={{ scale: 1.02 }}
-              className="p-8 rounded-3xl border bg-amber-500/[0.06] border-amber-500/20 hover:border-amber-400/40 transition-all shadow-xl"
+              whileHover={{ y: -8, scale: 1.02 }}
+              className="p-10 rounded-3xl border bg-gradient-to-br from-amber-500/[0.1] to-orange-500/[0.05] border-amber-500/30 hover:border-amber-400/60 transition-all shadow-2xl shadow-amber-500/10 group h-full"
             >
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6 bg-amber-500/10">
-                <Activity className="w-7 h-7 text-amber-400" />
+              <div className="w-20 h-20 rounded-2xl flex items-center justify-center mb-8 bg-amber-500/20 group-hover:scale-110 transition-transform shadow-lg shadow-amber-500/20">
+                <Activity className="w-10 h-10 text-amber-400" />
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-white">Employers & Organizations</h3>
-              <p className="leading-relaxed mb-4 text-slate-400">Eliminate hiring fraud. Verify candidate credentials instantly. Manage your workforce with a real-time dashboard backed by immutable records and AI-driven anomaly detection.</p>
-              <ul className="space-y-2 text-sm text-slate-300">
-                {['Instant credential verification API', 'Advanced AI firewall for fraud detection', 'Workforce analytics & onboarding CRM'].map((item, i) => (
-                  <li key={i} className="flex items-center"><CheckCircle className="w-4 h-4 text-amber-500 mr-2 flex-shrink-0" />{item}</li>
+              <h3 className="text-3xl font-black mb-4 text-white group-hover:text-vibrant-rose transition-all">Employers & Organizations</h3>
+              <p className="leading-relaxed mb-6 text-rose-tint/80 text-lg">Eliminate hiring fraud. Verify candidate credentials instantly. Manage your workforce with a real-time dashboard backed by immutable records and AI-driven anomaly detection.</p>
+              <ul className="space-y-4 text-base text-rose-tint/70">
+                {['Instant credential verification API', 'Advanced AI firewall for detection', 'Workforce analytics & onboarding CRM'].map((item, i) => (
+                  <li key={i} className="flex items-center"><CheckCircle className="w-5 h-5 text-amber-500 mr-3 flex-shrink-0" />{item}</li>
                 ))}
               </ul>
             </motion.div>
@@ -295,12 +289,12 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
       </section>
 
       {/* --- WHY JOIN SECTION --- */}
-      <section className="max-w-7xl mx-auto px-6 py-24 z-10 relative">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-black mb-4 text-white">Why <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-500">Join CETS?</span></h2>
-          <p className="max-w-2xl mx-auto text-lg text-slate-400">We're not just another HR platform. Here's what sets us apart.</p>
+      <section id="why-join" className="max-w-7xl mx-auto px-6 py-16 z-10 relative">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-black mb-4 text-white">Why <span className="text-vibrant-indigo text-glow">Join CETS?</span></h2>
+          <p className="max-w-xl mx-auto text-base text-slate-400">We're not just another HR platform. Here's what sets us apart.</p>
         </div>
-        <motion.div 
+        <motion.div
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
@@ -318,31 +312,29 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
             { emoji: '📄', title: 'One-Click Resume Export', desc: 'Generate a clean, verified PDF resume from your immutable blockchain profile in seconds.' },
             { emoji: '🌍', title: 'MCP Protocol Ready', desc: 'Model Context Protocol server ready for AI assistants to securely query your career data via standardized APIs.' },
           ].map((item, i) => (
-            <motion.div 
+            <motion.div
               variants={{
                 hidden: { opacity: 0, scale: 0.9 },
                 visible: { opacity: 1, scale: 1, transition: { duration: 0.5 } }
               }}
-              whileHover={{ y: -5, borderColor: "rgba(99, 102, 241, 0.5)", transition: { duration: 0.2 } }}
-              key={i} 
-              className="p-6 rounded-2xl border transition-all bg-slate-900/40 border-slate-800"
+              className="p-8 rounded-2xl border transition-all glass-card-premium h-full group"
             >
-              <span className="text-3xl mb-4 block">{item.emoji}</span>
-              <h3 className="text-lg font-bold mb-2 text-white">{item.title}</h3>
-              <p className="text-sm leading-relaxed text-slate-400">{item.desc}</p>
+              <span className="text-4xl mb-6 block group-hover:scale-125 transition-transform duration-500">{item.emoji}</span>
+              <h3 className="text-xl font-bold mb-3 text-white group-hover:text-indigo-300 transition-colors uppercase tracking-tight">{item.title}</h3>
+              <p className="text-base leading-relaxed text-slate-400 group-hover:text-slate-300 transition-colors">{item.desc}</p>
             </motion.div>
           ))}
         </motion.div>
       </section>
 
       {/* --- HOW IT WORKS SECTION --- */}
-      <section className="py-24 relative z-10 border-y bg-slate-900/20 border-slate-800">
+      <section className="py-16 relative z-10 border-y bg-slate-900/20 border-slate-800">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-black mb-4 text-white">How It <span className="text-cyan-500">Works</span></h2>
             <p className="max-w-2xl mx-auto text-lg text-slate-400">Getting started is simple. Four steps to a verifiable career identity.</p>
           </div>
-          <motion.div 
+          <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
@@ -358,12 +350,12 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
               { step: '03', title: 'Get Verified', desc: 'Employers verify your credentials directly from their dashboard. A SHA-256 cryptographic hash confirms every detail.', color: 'cyan' },
               { step: '04', title: 'Stay Protected', desc: 'Our continuous monitoring system tracks login patterns, device fingerprints, and behavioral anomalies 24/7.', color: 'emerald' },
             ].map((item, i) => (
-              <motion.div 
+              <motion.div
                 variants={{
                   hidden: { opacity: 0, x: i % 2 === 0 ? -40 : 40 },
                   visible: { opacity: 1, x: 0, transition: { duration: 0.8, ease: "easeOut" } }
                 }}
-                key={i} 
+                key={i}
                 className="flex items-start gap-6 p-6 rounded-2xl border transition-all bg-slate-950/50 border-slate-800 hover:border-slate-700"
               >
                 <div className={`flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center font-black text-lg bg-${item.color}-500/10 text-${item.color}-400`}>
@@ -380,112 +372,67 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
       </section>
 
       {/* 4. Shadcn-Style Live Stats Grid */}
-      <section className="max-w-7xl mx-auto px-6 py-10 z-10 relative">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <section id="stats" className="max-w-7xl mx-auto px-6 py-16 z-10 relative">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
-            { label: 'Verified Professionals', value: '54,935+', icon: Users, darkColor: 'text-blue-400', darkBg: 'bg-blue-500/10' },
+            { label: 'Verified Professionals', value: '54,935+', icon: Users, darkColor: 'text-indigo-400', darkBg: 'bg-indigo-500/10' },
             { label: 'Active Employers', value: '2,000+', icon: Activity, darkColor: 'text-emerald-400', darkBg: 'bg-emerald-500/10' },
             { label: 'Immutable Hashes', value: '1.2M+', icon: Database, darkColor: 'text-purple-400', darkBg: 'bg-purple-500/10' }
           ].map((stat, i) => (
             <motion.div
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + (i * 0.1) }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
               key={i}
-              className="p-6 rounded-3xl backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 border bg-slate-900/50 border-slate-800 shadow-[0_8px_30px_rgba(0,0,0,0.2)] hover:border-indigo-500/30"
+              className="glass-card-premium p-10 rounded-3xl transition-all duration-300 hover:-translate-y-2 group"
             >
-              <div className="flex justify-between items-start mb-4">
-                <p className="font-bold text-slate-400">{stat.label}</p>
-                <div className={`p-2 rounded-xl ${stat.darkBg}`}>
-                  <stat.icon className={`w-5 h-5 ${stat.darkColor}`} />
+              <div className="flex justify-between items-start mb-6">
+                <p className="font-bold text-slate-500 uppercase tracking-widest text-sm">{stat.label}</p>
+                <div className={`p-3 rounded-2xl ${stat.darkBg} group-hover:scale-110 transition-transform`}>
+                  <stat.icon className={`w-6 h-6 ${stat.darkColor}`} />
                 </div>
               </div>
-              <p className="text-4xl font-black text-white">{stat.value}</p>
+              <p className="text-5xl font-black text-white tracking-tighter group-hover:text-vibrant transition-all duration-500">{stat.value}</p>
             </motion.div>
           ))}
         </div>
       </section>
 
       {/* 5. Modern Footer with Admin Access */}
-      <footer className="border-t mt-20 transition-colors duration-500 backdrop-blur-xl border-slate-800 bg-slate-950/50">
-        <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col md:flex-row justify-between items-center">
-          <div className="flex items-center space-x-2 mb-4 md:mb-0">
-            <Hexagon className="w-6 h-6 text-indigo-500" />
-            <span className="text-xl font-black tracking-tighter text-white">CETS</span>
-          </div>
+      <footer className="footer-vibrant border-t border-slate-800/50 bg-slate-950/80 backdrop-blur-3xl relative z-10">
+        <div className="max-w-7xl mx-auto px-6 py-16">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-12">
+            <div className="flex flex-col items-center md:items-start space-y-4">
+              <div className="flex items-center space-x-3">
+                <Hexagon className="w-8 h-8 text-indigo-500 animate-[slow-spin_12s_linear_infinite]" />
+                <span className="text-3xl font-black tracking-tighter text-white">CETS</span>
+              </div>
+              <p className="text-slate-500 text-sm max-w-xs text-center md:text-left">Building the future of immutable career verification on the blockchain.</p>
+            </div>
 
-          <div className="flex flex-wrap md:flex-nowrap gap-4 md:space-x-6 text-sm font-medium text-slate-400">
-            <button onClick={() => setShowPrivacy(true)} className="transition-colors hover:text-indigo-400">Privacy Policy</button>
-            <button onClick={() => setShowTerms(true)} className="transition-colors hover:text-indigo-400">Terms of Service</button>
-            {/* Admin Access Trigger */}
-            <button onClick={handleShowAdminModal} className="flex items-center transition-colors group text-slate-600 hover:text-rose-400">
-              <Lock className="w-3 h-3 mr-1 group-hover:animate-pulse" /> System Access
+            <div className="flex flex-wrap justify-center gap-8 md:gap-12 text-sm font-bold text-slate-400 capitalize">
+              <button onClick={() => setShowPrivacy(true)} className="transition-all hover:text-indigo-400 hover:scale-110">Privacy</button>
+              <button onClick={() => setShowTerms(true)} className="transition-all hover:text-indigo-400 hover:scale-110">Terms</button>
+              <button onClick={onNavigateToAdminAuth} className="flex items-center transition-all group text-slate-600 hover:text-rose-400 hover:scale-110 font-bold">
+                <Lock className="w-4 h-4 mr-2 group-hover:animate-pulse" /> System Access
+              </button>
+            </div>
+
+            <button
+              onClick={scrollToTop}
+              className="p-4 rounded-2xl transition-all shadow-2xl bg-slate-900 border border-slate-800 hover:border-indigo-500/50 text-slate-300 hover:text-indigo-400 hover:-translate-y-2 group"
+            >
+              <ChevronUp className="w-6 h-6 group-hover:animate-bounce" />
             </button>
           </div>
-
-          <button onClick={scrollToTop} className="mt-8 md:mt-0 p-3 rounded-full transition-colors shadow-sm bg-slate-800 hover:bg-slate-700 text-slate-300">
-            <ChevronUp className="w-5 h-5" />
-          </button>
+          <div className="mt-12 pt-8 border-t border-slate-900 text-center text-[10px] font-mono text-slate-700 tracking-widest uppercase">
+            &copy; 2026 CETS PROTOCOL. ALL RIGHTS RESERVED. SECURED BY SHA-256.
+          </div>
         </div>
       </footer>
 
-      {/* ADMIN TERMINAL MODAL */}
-      <AnimatePresence>
-        {showAdminModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="w-full max-w-sm bg-[#0A0E17] border border-rose-500/50 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(244,63,94,0.2)]">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-rose-500/30 bg-rose-500/10">
-                <p className="text-xs font-mono text-rose-500 flex items-center">root@cets-firewall:~# <span className="ml-2 w-1.5 h-3 bg-rose-500 animate-pulse"></span></p>
-                <button onClick={() => { setShowAdminModal(false); setAdminError(''); }} className="text-slate-500 hover:text-white"><X className="w-4 h-4" /></button>
-              </div>
-              <form onSubmit={handleAdminLogin} className="p-6 space-y-4">
-                {adminError && (
-                  <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded text-rose-400 text-xs font-mono">{adminError}</div>
-                )}
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-700 group-focus-within:text-rose-500">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <input required type="text" placeholder="Admin ID (Email)" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} className="w-full p-3 pl-10 bg-black border border-slate-800 rounded text-rose-500 font-mono text-sm outline-none focus:border-rose-500 placeholder-slate-800" />
-                </div>
 
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-700 group-focus-within:text-rose-500">
-                    <Lock className="w-4 h-4" />
-                  </div>
-                  <input required type={showAdminPassword ? "text" : "password"} placeholder="Passkey" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} className="w-full p-3 pl-10 pr-10 bg-black border border-slate-800 rounded text-rose-500 font-mono text-sm outline-none focus:border-rose-500 placeholder-slate-800" />
-                  <button type="button" onClick={() => setShowAdminPassword(!showAdminPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-700 hover:text-rose-500">
-                    {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-
-                {/* Math Captcha */}
-                <div className="flex items-center space-x-3 bg-black/50 p-3 rounded border border-slate-800">
-                  <div className="text-xs font-mono text-slate-500 shrink-0">Security Code: <span className="text-rose-500">{adminCaptcha.q} =</span></div>
-                  <input 
-                    type="number" 
-                    value={adminCaptchaInput} 
-                    onChange={e => setAdminCaptchaInput(e.target.value)} 
-                    placeholder="?"
-                    className="w-16 bg-transparent border-b border-slate-700 text-rose-500 outline-none focus:border-rose-500 px-1 text-center font-mono"
-                  />
-                </div>
-
-                <div className="flex justify-between items-center text-[10px] font-mono">
-                  <button type="button" onClick={() => alert("ADMIN RECOVERY PROTOCOL: Please use your physical hardware key or contact technical lead for emergency reset.")} className="text-slate-600 hover:text-rose-400 decoration-dotted underline">Forgot Passkey?</button>
-                  <span className="text-slate-800">CETS V2.Secure</span>
-                </div>
-
-                <button 
-                  type="submit" 
-                  disabled={adminLoading || parseInt(adminCaptchaInput) !== adminCaptcha.a} 
-                  className="w-full py-3 bg-rose-600 hover:bg-rose-500 text-white font-mono font-bold rounded uppercase tracking-widest text-sm shadow-[0_0_15px_rgba(244,63,94,0.4)] disabled:opacity-30 disabled:shadow-none"
-                >
-                  {adminLoading ? 'VERIFYING...' : 'INITIATE OVERRIDE'}
-                </button>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* PRIVACY & TERMS MODALS */}
       <AnimatePresence>
@@ -526,8 +473,9 @@ export default function LandingPage({ onNavigateToAuth, setUser, darkMode }) {
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
 
+        {/* --- ROLE SELECTION MODAL --- */}
+      </AnimatePresence>
     </div>
   );
 }

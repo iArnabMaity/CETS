@@ -2,10 +2,17 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 // Import all your existing, functioning components
 import LandingPage from './components/LandingPage';
-import AuthPage from './components/AuthPage';
+import RoleSelectionPage from './components/RoleSelectionPage';
+import EmployeeAuthPage from './components/EmployeeAuthPage';
+import EmployerAuthPage from './components/EmployerAuthPage';
+import AdminAuthPage from './components/AdminAuthPage';
 import EmployeeDashboard from './components/EmployeeDashboard';
 import EmployerDashboard from './components/EmployerDashboard';
 import AdminDashboard from './components/AdminDashboard';
+import ParticleBackground from './components/ParticleBackground';
+import BrightnessController from './components/BrightnessController';
+import { motion, AnimatePresence } from 'framer-motion';
+import Swal from 'sweetalert2';
 
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -34,7 +41,14 @@ export default function App() {
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     idleTimerRef.current = setTimeout(() => {
       handleSetUser(null);
-      alert('⏱ Session expired due to 30 minutes of inactivity. Please log in again.');
+      Swal.fire({
+        icon: 'info',
+        title: 'Session Expired',
+        text: '⏱ Your session has expired due to 30 minutes of inactivity. Please log in again to continue.',
+        confirmButtonColor: '#6366f1',
+        background: '#0f172a',
+        color: '#f1f5f9'
+      });
     }, SESSION_TIMEOUT_MS);
   }, []);
 
@@ -53,12 +67,17 @@ export default function App() {
   }, [user, resetIdleTimer]);
 
   const handleSetUser = (userData) => {
-    setUser(userData);
-    if (userData) {
-      localStorage.setItem('cets_user', JSON.stringify(userData));
-    } else {
-      localStorage.removeItem('cets_user');
-    }
+    setUser((prevUser) => {
+      const newUser = typeof userData === 'function' ? userData(prevUser) : userData;
+      if (newUser) {
+        localStorage.setItem('cets_user', JSON.stringify(newUser));
+      } else {
+        localStorage.removeItem('cets_user');
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+      }
+      return newUser;
+    });
   };
 
   if (isInitializing) {
@@ -69,40 +88,100 @@ export default function App() {
     );
   }
 
-  // 1. If a user is securely logged in, route them to their specific dashboard
-  if (user) {
-    if (user.role === 'employee') {
-      return <EmployeeDashboard user={user} setUser={handleSetUser} />;
+  // Wrap content in a common layout to include background and global tools
+  const renderView = () => {
+    if (user) {
+      if (user.role === 'employee') return <EmployeeDashboard user={user} setUser={handleSetUser} />;
+      if (user.role === 'employer') return <EmployerDashboard user={user} setUser={handleSetUser} />;
+      if (user.role === 'admin') return <AdminDashboard user={user} setUser={handleSetUser} />;
+      return (
+        <div className="flex h-screen items-center justify-center bg-slate-950 text-white">
+          <p>Error: Unrecognized role assigned to user.</p>
+          <button onClick={() => handleSetUser(null)} className="ml-4 px-4 py-2 bg-indigo-600 rounded">Log Out</button>
+        </div>
+      );
     }
-    if (user.role === 'employer') {
-      return <EmployerDashboard user={user} setUser={handleSetUser} />;
+
+    if (currentView === 'landing') {
+      return (
+        <LandingPage
+          key="landing"
+          onNavigateToRoleSelection={() => setCurrentView('role-selection')}
+          onNavigateToAdminAuth={() => setCurrentView('admin-auth')}
+          setUser={handleSetUser}
+          darkMode={true}
+        />
+      );
     }
-    if (user.role === 'admin') {
-      return <AdminDashboard user={user} setUser={handleSetUser} />;
+
+    if (currentView === 'role-selection') {
+      return (
+        <RoleSelectionPage
+          key="role-selection"
+          onNavigateToAuth={(role) => {
+            setCurrentView(role === 'employee' ? 'employee-auth' : 'employer-auth');
+          }}
+          onBack={() => setCurrentView('landing')}
+        />
+      );
     }
 
-    // Failsafe catch-all
-    return (
-      <div className="flex h-screen items-center justify-center bg-slate-950 text-white">
-        <p>Error: Unrecognized role assigned to user.</p>
-        <button onClick={() => handleSetUser(null)} className="ml-4 px-4 py-2 bg-indigo-600 rounded">Log Out</button>
-      </div>
-    );
-  }
+    if (currentView === 'employee-auth') {
+      return (
+        <EmployeeAuthPage 
+          key="employee-auth" 
+          setUser={handleSetUser} 
+          onBack={() => {
+            setCurrentView('role-selection');
+          }} 
+        />
+      );
+    }
 
-  // 2. If nobody is logged in, show the original Landing Page by default
-  if (currentView === 'landing') {
-    return <LandingPage
-      onNavigateToAuth={() => setCurrentView('auth')}
-      setUser={handleSetUser}
-      darkMode={true}
-    />;
-  }
+    if (currentView === 'employer-auth') {
+      return (
+        <EmployerAuthPage 
+          key="employer-auth" 
+          setUser={handleSetUser} 
+          onBack={() => {
+            setCurrentView('role-selection');
+          }} 
+        />
+      );
+    }
 
-  // 3. When they click "Get Started" on the landing page, show the Auth/CAPTCHA screen
-  if (currentView === 'auth') {
-    return <AuthPage setUser={handleSetUser} onBack={() => setCurrentView('landing')} />;
-  }
+    if (currentView === 'admin-auth') {
+      return (
+        <AdminAuthPage 
+          key="admin-auth" 
+          setUser={handleSetUser} 
+          onBack={() => {
+            setCurrentView('landing');
+          }} 
+        />
+      );
+    }
+    return null;
+  };
 
-  return null;
+  return (
+    <>
+      <ParticleBackground />
+      <BrightnessController />
+
+      <main className="relative z-10 min-h-screen">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={user ? user.role : currentView}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+          >
+            {renderView()}
+          </motion.div>
+        </AnimatePresence>
+      </main>
+    </>
+  );
 }

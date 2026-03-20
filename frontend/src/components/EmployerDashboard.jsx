@@ -1,11 +1,122 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Building2, LogOut, Users, Briefcase, FileSignature, PieChart, Lock, ShieldCheck, Bell, Plus, X, Eye, CheckCircle, XCircle, Calendar, MapPin, IndianRupee, KeyRound, Minus, User, Phone, Check, Save, Moon, Sun, Settings, ChevronDown, MessageSquare, Send } from 'lucide-react';
+import { Building2, LogOut, Users, Briefcase, FileSignature, PieChart, Lock, ShieldCheck, Bell, Plus, X, Eye, CheckCircle, XCircle, Calendar, MapPin, IndianRupee, KeyRound, Minus, User, Phone, Check, Save, Moon, Sun, Settings, ChevronDown, MessageSquare, Send, Smartphone, Tablet, Laptop, Monitor, GraduationCap, Sparkles, Activity, Search, SortAsc, SortDesc, Filter, ArrowUpDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import StealthSurveyModal from './StealthSurveyModal';
+import AcademicFingerprint from './AcademicFingerprint';
+import Pagination from './common/Pagination';
+import PhoneInput from './PhoneInput';
+import Swal from 'sweetalert2';
+import { DateTime } from 'luxon';
+import AOS from 'aos';
+import 'aos/dist/aos.css';
+import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
+import { Doughnut, Bar } from 'react-chartjs-2';
+
+ChartJS.register(ArcElement, ChartTooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000';
 
+const RosterEmployeeRow = ({ emp, handleEmployeeClick, setStealthTarget, setShowStealthModal, user }) => {
+    const [evalStatus, setEvalStatus] = useState({ available: true, next_available: null });
+    const [countdown, setCountdown] = useState("");
+
+    useEffect(() => {
+        if (user?.id && (emp.employee_id || emp.id)) {
+            axios.get(`${API_BASE}/api/evaluations/status/${user.id}/${emp.employee_id || emp.id}`)
+                .then(res => setEvalStatus(res.data))
+                .catch(console.error);
+        }
+    }, [emp, user?.id]);
+
+    useEffect(() => {
+        if (evalStatus.available || !evalStatus.next_available) {
+            setCountdown("");
+            return;
+        }
+
+        const interval = setInterval(() => {
+            const now = DateTime.now();
+            const target = DateTime.fromISO(evalStatus.next_available);
+            const diff = target.diff(now, ['months', 'days', 'hours', 'minutes']);
+
+            if (diff.as('milliseconds') <= 0) {
+                setEvalStatus({ ...evalStatus, available: true });
+                setCountdown("");
+                clearInterval(interval);
+            } else {
+                const months = Math.floor(diff.months);
+                const days = Math.floor(diff.days);
+
+                if (months > 0) {
+                    setCountdown(`${months}m ${days}d`);
+                } else {
+                    const hours = Math.floor(diff.hours);
+                    const mins = Math.floor(diff.minutes);
+                    setCountdown(`${days}d ${hours}h ${mins}m`);
+                }
+            }
+        }, 30000);
+
+        // Initial update
+        const now = DateTime.now();
+        const target = DateTime.fromISO(evalStatus.next_available);
+        const diff = target.diff(now, ['months', 'days', 'hours', 'minutes']);
+        if (diff.as('milliseconds') > 0) {
+            const months = Math.floor(diff.months);
+            const days = Math.floor(diff.days);
+            if (months > 0) setCountdown(`${months}m ${days}d`);
+            else setCountdown(`${days}d ${Math.floor(diff.hours)}h ${Math.floor(diff.minutes)}m`);
+        }
+
+        return () => clearInterval(interval);
+    }, [evalStatus]);
+
+    return (
+        <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] flex justify-between items-center hover:bg-white/[0.05] transition-colors group">
+            <div onClick={() => handleEmployeeClick(emp)} className="flex items-center space-x-4 cursor-pointer flex-1">
+                <div className="w-10 h-10 bg-indigo-500/10 rounded-full flex items-center justify-center border border-indigo-500/20">
+                    <User className="text-indigo-400 w-5 h-5" />
+                </div>
+                <div>
+                    <p className="font-bold">{emp.name || emp.employee_name || "Unknown Candidate"}</p>
+                    <p className="text-xs font-mono text-slate-500">{emp.employee_id || emp.id}</p>
+                </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+                {evalStatus.available ? (
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setStealthTarget({ ...emp, lockoutMonths: 3 });
+                                setShowStealthModal(true);
+                            }}
+                            className="bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 shadow-lg shadow-indigo-500/20"
+                        >
+                            <FileSignature className="w-3 h-3" /> Evaluate
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-end">
+                        <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest">Next assessment in</span>
+                        <span className="text-[11px] text-indigo-400 font-mono font-bold animate-pulse">
+                            {countdown} Wait!
+                        </span>
+                    </div>
+                )}
+                <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-xs font-bold flex items-center shrink-0">
+                    <ShieldCheck className="w-3 h-3 mr-1" /> Active
+                </span>
+            </div>
+        </div>
+    );
+};
+
 export default function EmployerDashboard({ user, setUser }) {
+    const authHeader = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
+    const isInitialLoadDone = useRef(false);
     const [activeTab, setActiveTab] = useState('profile');
     const [aboutUs, setAboutUs] = useState("");
     const [personalInfo, setPersonalInfo] = useState({ gender: '', countryCode: '+91', mobile: '', dob: '' });
@@ -14,15 +125,46 @@ export default function EmployerDashboard({ user, setUser }) {
 
     // Profile Avatar Dropdown & Modal
     const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+    const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
     const [showEditProfileModal, setShowEditProfileModal] = useState(false);
     const profileDropdownRef = useRef(null);
+    const notificationDropdownRef = useRef(null);
+
+    const [editForm, setEditForm] = useState({ company_name: '', email: '', establishment_year: '', phone: '' });
+
+    // Approval Request System
+    const [showApprovalModal, setShowApprovalModal] = useState(false);
+    const [approvalReason, setApprovalReason] = useState("");
+    const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
+    const [pendingChanges, setPendingChanges] = useState({});
 
     // Data States
-    const [activeEmployees, setActiveEmployees] = useState([]);
-    const [pendingRequests, setPendingRequests] = useState({ relieve: [], onboarding: [], applications: [] });
+    const [activeEmployees, setActiveEmployees] = useState({ employees: [], total: 0, page: 1 });
+    const [searchTerm, setSearchTerm] = useState("");
+    const [sortOption, setSortOption] = useState("joining_desc"); // joining_desc, joining_asc, name_az, name_za, id_asc, id_desc
+    const phoneInputRef = useRef(null);
+    const [isWorkforceLoading, setIsWorkforceLoading] = useState(false);
+    const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
+    const [companyAnalytics, setCompanyAnalytics] = useState({
+        active_workforce: 0,
+        avg_retention_rate: 0.0,
+        workforce_trust_index: 0.0
+    });
+    const [pendingRequests, setPendingRequests] = useState({
+        relieve: [],
+        onboarding: [],
+        applications: [],
+        total_applications: 0,
+        applications_page: 1
+    });
+    const [companyTrustIndex, setCompanyTrustIndex] = useState(0);
     const [notifications, setNotifications] = useState([]);
     const [showNotifications, setShowNotifications] = useState(false);
     const [selectedCandidate, setSelectedCandidate] = useState(null);
+
+    // Stealth Evaluation State
+    const [showStealthModal, setShowStealthModal] = useState(false);
+    const [stealthTarget, setStealthTarget] = useState(null);
 
     // Job Posting State
     const [newJob, setNewJob] = useState({
@@ -34,6 +176,26 @@ export default function EmployerDashboard({ user, setUser }) {
     // Password State
     const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
 
+    const handleLogout = async () => {
+        const result = await Swal.fire({
+            title: 'Terminate Session?',
+            text: 'Are you sure you want to disconnect from the secure HR Command Center?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#6366f1',
+            cancelButtonColor: '#ef4444',
+            confirmButtonText: 'Yes, log out!',
+            background: '#0f172a',
+            color: '#f1f5f9'
+        });
+
+        if (result.isConfirmed) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('role');
+            setUser(null);
+        }
+    };
+
     // Chat State (WebSockets)
     const [chatDrawerOpen, setChatDrawerOpen] = useState(false);
     const [chatHistory, setChatHistory] = useState([]);
@@ -41,45 +203,179 @@ export default function EmployerDashboard({ user, setUser }) {
     const wsRef = useRef(null);
     const chatScrollRef = useRef(null);
 
-    // Initial Data Fetch
+    useEffect(() => {
+        if (user?.id && user.company_name) {
+            setIsWorkforceLoading(true);
+            axios.get(`${API_BASE}/api/hr/active_employees/${user.company_name}?page=${activeEmployees.page || 1}&limit=30`, authHeader)
+                .then(res => setActiveEmployees(prev => ({ ...res.data, page: res.data?.page || 1 })))
+                .catch(console.error)
+                .finally(() => setIsWorkforceLoading(false));
+        }
+    }, [activeEmployees.page, user?.company_name]);
+
     useEffect(() => {
         if (user?.id) {
-            setAboutUs(user.about || "");
-
-            if (user.company_name) {
-                axios.get(`${API_BASE}/api/hr/active_employees/${user.company_name}`)
-                    .then(res => setActiveEmployees(res.data.employees || []))
-                    .catch(console.error);
-            }
-
-            axios.get(`${API_BASE}/api/secure_search/${user.id}`)
-                .then(res => {
-                    if (res.data?.personal_info) {
-                        setPersonalInfo(res.data.personal_info);
-                    }
-                }).catch(console.error);
-
-            axios.get(`${API_BASE}/api/hr/pending_requests/${user.id}`)
+            axios.get(`${API_BASE}/api/hr/pending_requests/${user.id}?page=${pendingRequests.applications_page || 1}&limit=30`, authHeader)
                 .then(res => {
                     const reqs = res.data.requests || [];
-                    setPendingRequests({
+                    setPendingRequests(prev => ({
+                        ...prev,
                         relieve: reqs.filter(r => r.type === 'relieve'),
                         onboarding: reqs.filter(r => r.type === 'onboarding'),
-                        applications: reqs.filter(r => r.type === 'application' || !r.type)
-                    });
+                        applications: reqs.filter(r => r.type === 'application' || !r.type),
+                        total_applications: res.data.total || 0
+                    }));
                 }).catch(console.error);
-
-            axios.get(`${API_BASE}/api/notifications/${user.id}`)
-                .then(res => setNotifications(res.data.notifications || []))
-                .catch(console.error);
         }
-    }, [user]);
+    }, [pendingRequests.applications_page, user?.id]);
 
-    // Close profile dropdown when clicking outside
+    useEffect(() => {
+        AOS.init({
+            duration: 800,
+            once: true,
+            easing: 'ease-out-quad',
+            delay: 100,
+        });
+    }, []);
+
+    useEffect(() => {
+        if (user?.id) {
+            if (!isInitialLoadDone.current) {
+                setAboutUs(user.about || "");
+                isInitialLoadDone.current = true;
+            }
+
+            const fetchInitialData = async () => {
+                if (user.company_name) {
+                    setIsWorkforceLoading(true);
+                    axios.get(`${API_BASE}/api/hr/active_employees/${user.company_name}?page=${activeEmployees.page || 1}&limit=30`, authHeader)
+                        .then(res => setActiveEmployees(prev => ({ ...res.data, page: res.data?.page || 1 })))
+                        .catch(console.error)
+                        .finally(() => setIsWorkforceLoading(false));
+                }
+
+                axios.get(`${API_BASE}/api/profile/me/${user.id}`)
+                    .then(res => {
+                        if (res.data) {
+                            if (res.data.personal_info) {
+                                setPersonalInfo(res.data.personal_info);
+                            } else {
+                                setPersonalInfo(prev => ({ ...prev, dob: res.data.dob || '', gender: res.data.gender || '', mobile: res.data.phone || '', countryCode: '+91' }));
+                            }
+
+                            // Only update user state if critical fields differ to avoid infinite loops
+                            const needsUpdate = !user.email ||
+                                (res.data.company_name && res.data.company_name !== user.company_name) ||
+                                (res.data.establishment_year && res.data.establishment_year !== user.establishment_year);
+
+                            if (needsUpdate) {
+                                const companyName = res.data.company_name || user.company_name;
+                                setUser(prev => ({
+                                    ...prev,
+                                    email: res.data.email || prev.email,
+                                    company_name: companyName,
+                                    establishment_year: res.data.establishment_year || prev.establishment_year,
+                                    name: res.data.name || prev.name,
+                                    phone: res.data.phone || prev.phone,
+                                    name_edits_remaining: res.data.name_edits_remaining,
+                                    dob_edits_remaining: res.data.dob_edits_remaining,
+                                    company_name_edits_remaining: res.data.company_name_edits_remaining,
+                                    establishment_year_edits_remaining: res.data.establishment_year_edits_remaining
+                                }));
+
+                                if (companyName && (!activeEmployees.employees || !activeEmployees.employees.length)) {
+                                    setIsWorkforceLoading(true);
+                                    axios.get(`${API_BASE}/api/hr/active_employees/${companyName}?page=${activeEmployees.page || 1}&limit=30`, authHeader)
+                                        .then(activeRes => setActiveEmployees(prev => ({ ...activeRes.data, page: activeRes.data?.page || 1 })))
+                                        .catch(console.error)
+                                        .finally(() => setIsWorkforceLoading(false));
+                                }
+                            }
+
+                            if (res.data?.company_name) {
+                                axios.get(`${API_BASE}/api/evaluations/company_stats/${res.data.company_name}`)
+                                    .then(trs => setCompanyTrustIndex(trs.data.average_score || 0))
+                                    .catch(console.error);
+                            }
+                        }
+                    }).catch(err => {
+                        console.error("Failed to sync employer profile details:", err);
+                    });
+
+                axios.get(`${API_BASE}/api/hr/pending_requests/${user.id}?page=${pendingRequests.applications_page || 1}&limit=30`, authHeader)
+                    .then(res => {
+                        const reqs = res.data.requests || [];
+                        setPendingRequests(prev => ({
+                            ...prev,
+                            relieve: reqs.filter(r => r.type === 'relieve'),
+                            onboarding: reqs.filter(r => r.type === 'onboarding'),
+                            applications: reqs.filter(r => r.type === 'application' || !r.type),
+                            total_applications: res.data.total || 0
+                        }));
+                    }).catch(console.error);
+
+                axios.get(`${API_BASE}/api/notifications/${user.id}`)
+                    .then(res => {
+                        const existing = res.data.notifications || [];
+                        setNotifications(existing);
+                        // Trigger synthetic feedback reminders after fetching real ones
+                        if (user.company_name) {
+                            axios.get(`${API_BASE}/api/evaluations/reminders/${user.company_name}?evaluator_id=${user.id}`)
+                                .then(remRes => {
+                                    const reminders = (remRes.data.reminders || []).map(r => ({
+                                        _id: `rem_${r.employee_id}`,
+                                        title: "Feedback Due",
+                                        message: `${r.name} is due for their 3-month periodic evaluation. (${r.reason})`,
+                                        type: "System",
+                                        is_read: false,
+                                        created_at: new Date().toISOString(),
+                                        is_synthetic: true // Mark as local-only
+                                    }));
+                                    setNotifications(prev => {
+                                        // Avoid duplicates
+                                        const filteredPrev = prev.filter(p => !p.is_synthetic);
+                                        return [...filteredPrev, ...reminders];
+                                    });
+                                }).catch(console.error);
+                        }
+                    })
+                    .catch(console.error);
+
+                // Initialization sequence complete
+
+            };
+
+            const fetchCompanyAnalytics = async () => {
+                if (!user?.company_name) return;
+                setIsAnalyticsLoading(true);
+                try {
+                    const res = await axios.get(`${API_BASE}/api/analytics/employer/${user.company_name}`);
+                    setCompanyAnalytics(res.data);
+                    if (res.data.workforce_trust_index) {
+                        setCompanyTrustIndex(res.data.workforce_trust_index);
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch company analytics:", err);
+                } finally {
+                    setIsAnalyticsLoading(false);
+                }
+            };
+
+            fetchInitialData();
+            fetchCompanyAnalytics();
+
+            const interval = setInterval(fetchInitialData, 30000);
+            return () => clearInterval(interval);
+        }
+    }, [user?.id, user?.company_name]);
+
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (profileDropdownRef.current && !profileDropdownRef.current.contains(e.target)) {
                 setShowProfileDropdown(false);
+            }
+            if (notificationDropdownRef.current && !notificationDropdownRef.current.contains(e.target)) {
+                setShowNotificationDropdown(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -98,23 +394,134 @@ export default function EmployerDashboard({ user, setUser }) {
     };
 
     const handleSaveAbout = async () => {
+        const result = await Swal.fire({
+            title: 'Update Description?',
+            text: 'This will modify your company\'s public profile summary.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#6366f1',
+            cancelButtonColor: '#ef4444',
+            confirmButtonText: 'Yes, save it!'
+        });
+
+        if (!result.isConfirmed) return;
+
         try {
-            await axios.post(`${API_BASE}/api/profile/about/${user.id}`, { about_text: aboutUs });
+            await axios.post(`${API_BASE}/api/profile/about/${user.id}`, { about_text: aboutUs }, authHeader);
             setAboutSavedStatus('Saved!');
             setTimeout(() => setAboutSavedStatus(''), 2000);
-        } catch (err) { alert("Failed to save profile."); }
+        } catch (err) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Save Failed',
+                text: 'Failed to save profile about text.'
+            });
+        }
     };
 
-    const handleSavePersonalInfo = async () => {
-        if (personalInfo.mobile && personalInfo.mobile.length !== 10) {
-            alert("Mobile number must be exactly 10 digits.");
+    const getDeviceIcon = (deviceStr) => {
+        if (!deviceStr) return <Monitor className="w-6 h-6 text-amber-400 opacity-80" />;
+        const ds = deviceStr.toLowerCase();
+        if (ds.includes('mobile') || ds.includes('phone') || ds.includes('android') || ds.includes('iphone')) return <Smartphone className="w-6 h-6 text-amber-400 opacity-80" />;
+        if (ds.includes('tablet') || ds.includes('ipad')) return <Tablet className="w-6 h-6 text-amber-400 opacity-80" />;
+        return <Laptop className="w-6 h-6 text-amber-400 opacity-80" />;
+    };
+
+    const openEditModal = () => {
+        setEditForm({
+            company_name: user?.company_name || user?.name || '',
+            email: user?.email || '',
+            establishment_year: user?.establishment_year || '',
+            phone: user?.phone || personalInfo?.mobile || ''
+        });
+        setShowEditProfileModal(true);
+    };
+
+    useEffect(() => {
+        if (showEditProfileModal) {
+            setEditForm({
+                company_name: user?.company_name || user?.name || '',
+                email: user?.email || '',
+                establishment_year: user?.establishment_year || '',
+                phone: user?.phone || personalInfo?.mobile || ''
+            });
+        }
+    }, [showEditProfileModal, user, personalInfo]);
+
+    const handleUpdateProfileV2 = async () => {
+        const iti = phoneInputRef.current?.getInstance();
+        if (iti && !iti.isValidNumber()) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Invalid Number',
+                text: 'Please enter a valid international phone number.'
+            });
             return;
         }
+
+        const result = await Swal.fire({
+            title: 'Commit Changes?',
+            text: 'Are you sure you want to update your organization\'s verified profile settings?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#6366f1',
+            cancelButtonColor: '#ef4444',
+            confirmButtonText: 'Yes, commit changes!'
+        });
+
+        if (!result.isConfirmed) return;
+
         try {
-            await axios.put(`${API_BASE}/api/profile/personal/${user.id}`, { personal_info: personalInfo });
-            setIsEditingPersonal(false);
-            alert("Representative details updated successfully.");
-        } catch (err) { alert("Failed to update personal info."); }
+            await axios.put(`${API_BASE}/api/profile/update_v2/${user.id}`, editForm, authHeader);
+            Swal.fire({
+                icon: 'success',
+                title: 'Settings Updated',
+                text: 'Company Settings updated successfully! Note: Edit limits may require a fresh login to reflect accurately.'
+            });
+            setUser({ ...user, company_name: editForm.company_name, email: editForm.email, establishment_year: editForm.establishment_year });
+            setPersonalInfo({ ...personalInfo, mobile: editForm.phone });
+            setShowEditProfileModal(false);
+        } catch (err) {
+            const msg = err.response?.data?.detail || "";
+            if (msg.toLowerCase().includes("limit reached")) {
+                setPendingChanges(editForm);
+                setShowApprovalModal(true);
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Update Failed',
+                    text: 'Failed to update company settings.'
+                });
+            }
+        }
+    };
+
+    const submitApprovalRequest = async () => {
+        setIsSubmittingApproval(true);
+        try {
+            await axios.post(`${API_BASE}/api/profile/request_update/${user.id}`, {
+                user_id: user.id,
+                name: user.company_name || user.name,
+                requested_changes: pendingChanges,
+                reason: approvalReason
+            }, authHeader);
+            Swal.fire({
+                icon: 'info',
+                title: 'Request Submitted',
+                text: 'Update request submitted! Admin will review and reset your limits shortly.'
+            });
+            setShowApprovalModal(false);
+            setApprovalReason("");
+            setShowEditProfileModal(false);
+        } catch (err) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Request Failed',
+                text: err.response?.data?.detail || "Request failed."
+            });
+        } finally {
+            setIsSubmittingApproval(false);
+        }
     };
 
     // --- Job Posting Logic ---
@@ -126,10 +533,89 @@ export default function EmployerDashboard({ user, setUser }) {
         }
     };
 
+    const handleEmployeeClick = async (emp) => {
+        if (!emp || !(emp.employee_id || emp.id)) return;
+
+        // --- 1. SET BASIC INFO IMMEDIATELY TO OPEN MODAL FAST ---
+        const initialCandidate = {
+            ...emp,
+            name: emp.name || emp.employee_name || "Loading...",
+            id: emp.employee_id || emp.id,
+            personal_info: emp.personal_info || {
+                dob: emp.dob || "N/A",
+                gender: emp.gender || "Not Specified"
+            },
+            experience: emp.experience || [],
+            education: emp.education || [],
+            skills: emp.skills || [],
+            analytics: null,
+            isLoadingDetails: true
+        };
+        setSelectedCandidate(initialCandidate);
+
+        try {
+            // --- 2. FETCH DETAILED PROFILE ---
+            const profileRes = await axios.get(`${API_BASE}/api/secure_search/${emp.employee_id || emp.id}`);
+            const profileData = profileRes.data || {};
+
+            // --- 3. FETCH ANALYTICS ---
+            let analyticsData = null;
+            try {
+                const analyticsRes = await axios.get(`${API_BASE}/api/analytics/employee/${emp.employee_id || emp.id}`);
+                analyticsData = analyticsRes.data;
+            } catch (analyticsErr) {
+                console.warn("Could not fetch analytics for this employee.");
+            }
+
+            // --- 4. UPDATE WITH FULL DATA ---
+            setSelectedCandidate(prev => {
+                // If user closed the modal or switched candidates during fetch, don't update
+                if (!prev || (prev.id !== (emp.employee_id || emp.id))) return prev;
+
+                return {
+                    ...prev,
+                    ...profileData,
+                    name: profileData.name || prev.name,
+                    personal_info: profileData.personal_info || {
+                        dob: profileData.dob || prev.personal_info.dob,
+                        gender: profileData.gender || prev.personal_info.gender
+                    },
+                    experience: profileData.experience || prev.experience,
+                    education: profileData.education || prev.education,
+                    skills: profileData.skills || prev.skills,
+                    analytics: analyticsData,
+                    isLoadingDetails: false
+                };
+            });
+        } catch (err) {
+            console.error("Failed to fetch detailed candidate info", err);
+            setSelectedCandidate(prev => prev ? { ...prev, isLoadingDetails: false } : null);
+        }
+    };
+
+    // --- Roster Employee Row Component ---
     const handlePostJob = async (e) => {
         e.preventDefault();
-        if (newJob.skills.length === 0) { alert("Please add at least one required skill."); return; }
-        if (!newJob.lastDate) { alert("Please set a cut-off date."); return; }
+        if (newJob.skills.length === 0) {
+            Swal.fire({ icon: 'warning', title: 'Skills Required', text: 'Please add at least one required skill.' });
+            return;
+        }
+        if (!newJob.lastDate) {
+            Swal.fire({ icon: 'warning', title: 'Date Required', text: 'Please set a cut-off date.' });
+            return;
+        }
+
+        const result = await Swal.fire({
+            title: 'Broadcast Job?',
+            text: `Are you sure you want to publish the "${newJob.job_title}" position to the global noticeboard?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#6366f1',
+            cancelButtonColor: '#ef4444',
+            confirmButtonText: 'Yes, publish!'
+        });
+
+        if (!result.isConfirmed) return;
 
         try {
             const payload = {
@@ -140,58 +626,153 @@ export default function EmployerDashboard({ user, setUser }) {
                 qualification: newJob.skills.join(", "),
                 salary: `₹${newJob.salary},00,000 LPA`, lastDate: newJob.lastDate
             };
-            await axios.post(`${API_BASE}/api/hr/post_job`, payload);
-            alert("Job successfully broadcasted to the Noticeboard!");
+            await axios.post(`${API_BASE}/api/hr/post_job`, payload, authHeader);
+            Swal.fire({ icon: 'success', title: 'Job Posted', text: 'Job successfully broadcasted to the Noticeboard!' });
             setNewJob({ job_title: '', vacancy: 1, location: 'Onsite', experience: 0, skills: [], salary: 5, lastDate: '' });
             setActiveTab('applications');
-        } catch (err) { alert("Error posting job."); }
+        } catch (err) {
+            Swal.fire({ icon: 'error', title: 'Post Failed', text: 'Error posting job.' });
+        }
     };
+
+    // --- Workforce Filtering & Sorting Logic ---
+    const getJoiningDate = (emp) => {
+        const currentExp = emp.experience?.find(exp => exp.end_date === 'Present');
+        return currentExp ? new Date(currentExp.start_date) : new Date(0);
+    };
+
+    const filteredAndSortedEmployees = (activeEmployees.employees || [])
+        .filter(emp => {
+            const name = (emp.name || emp.employee_name || "").toLowerCase();
+            const id = (emp.employee_id || emp.id || "").toLowerCase();
+            const query = searchTerm.toLowerCase();
+            return name.includes(query) || id.includes(query);
+        })
+        .sort((a, b) => {
+            switch (sortOption) {
+                case 'joining_desc': return getJoiningDate(b) - getJoiningDate(a);
+                case 'joining_asc': return getJoiningDate(a) - getJoiningDate(b);
+                case 'name_az': return (a.name || a.employee_name || "").localeCompare(b.name || b.employee_name || "");
+                case 'name_za': return (b.name || b.employee_name || "").localeCompare(a.name || a.employee_name || "");
+                case 'id_asc': return (a.employee_id || a.id || "").localeCompare(b.employee_id || b.id || "");
+                case 'id_desc': return (b.employee_id || b.id || "").localeCompare(a.employee_id || a.id || "");
+                default: return 0;
+            }
+        });
 
     const handleActionRequest = async (requestId, action, isRelieve = false) => {
         const actionText = action === 'accept' ? 'Approve' : 'Reject';
         const typeText = isRelieve ? 'Relieve Request' : 'Onboarding';
 
-        if (!window.confirm(`DOUBLE VERIFICATION: Are you sure you want to ${actionText.toUpperCase()} this ${typeText}? This will update the blockchain ledger permanently.`)) return;
+        const result = await Swal.fire({
+            title: 'Double Verification',
+            text: `Are you sure you want to ${actionText.toUpperCase()} this ${typeText}? This will update the blockchain ledger permanently.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#6366f1',
+            cancelButtonColor: '#ef4444',
+            confirmButtonText: 'Yes, proceed!'
+        });
+
+        if (!result.isConfirmed) return;
 
         try {
             const endpoint = isRelieve ? `/api/hr/action_relieve/${requestId}?action=${action}` : `/api/hr/action_request/${requestId}?action=${action}`;
-            await axios.get(`${API_BASE}${endpoint}`);
-            alert(`Success: ${typeText} ${actionText}ed.`);
+            Swal.fire({ icon: 'success', title: 'Action Confirmed', text: `Success: ${typeText} ${actionText}ed.` });
+
+            if (isRelieve && action === 'accept') {
+                const req = pendingRequests.relieve.find(r => r.request_id === requestId);
+                if (req) {
+                    setStealthTarget({ ...req, lockoutMonths: 3 });
+                    setShowStealthModal(true);
+                }
+            }
 
             if (isRelieve) {
                 setPendingRequests(prev => ({ ...prev, relieve: prev.relieve.filter(r => r.request_id !== requestId) }));
             } else {
                 setPendingRequests(prev => ({ ...prev, onboarding: prev.onboarding.filter(r => r.request_id !== requestId) }));
             }
-        } catch (err) { alert("Action failed. Check server connection."); }
+        } catch (err) {
+            Swal.fire({ icon: 'error', title: 'Action Failed', text: 'Action failed. Check server connection.' });
+        }
     };
 
     const viewCandidateDetails = async (empId) => {
+        if (!empId) return;
+
+        // Find existing basic info from local states if possible
+        const existingApp = pendingRequests.applications.find(a => a.employee_id === empId);
+        const existingRelieve = pendingRequests.relieve.find(r => r.employee_id === empId);
+        const existingOnboard = pendingRequests.onboarding.find(r => r.employee_id === empId);
+        const existingActive = (activeEmployees.employees || []).find(e => e.employee_id === empId);
+
+        const basicInfo = existingApp || existingRelieve || existingOnboard || existingActive || { employee_id: empId };
+
+        // Set basic info immediately
+        setSelectedCandidate({
+            ...basicInfo,
+            name: basicInfo.name || basicInfo.employee_name || "Loading...",
+            id: empId,
+            isLoadingDetails: true
+        });
+
         try {
             const res = await axios.get(`${API_BASE}/api/secure_search/${empId}`);
-            setSelectedCandidate(res.data);
-            setChatDrawerOpen(false); // Reset chat drawer when changing candidate
-        } catch (err) { alert("Could not fetch candidate details."); }
+
+            // Also fetch analytics
+            let analyticsData = null;
+            try {
+                const analyticsRes = await axios.get(`${API_BASE}/api/analytics/employee/${empId}`);
+                analyticsData = analyticsRes.data;
+            } catch (aErr) { console.warn(aErr); }
+
+            setSelectedCandidate(prev => {
+                if (!prev || prev.id !== empId) return prev;
+                return {
+                    ...prev,
+                    ...res.data,
+                    analytics: analyticsData,
+                    isLoadingDetails: false
+                };
+            });
+            setChatDrawerOpen(false);
+        } catch (err) {
+            console.error("Failed to fetch candidate details:", err);
+            setSelectedCandidate(prev => prev ? { ...prev, isLoadingDetails: false } : null);
+        }
     };
 
     const handleRequestReveal = async (candidate) => {
+        const result = await Swal.fire({
+            title: 'Request Reveal?',
+            text: `Send a cryptographically secured reveal request to ${candidate.name}?`,
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#ef4444',
+            confirmButtonText: 'Yes, send request'
+        });
+
+        if (!result.isConfirmed) return;
+
         try {
             const res = await axios.post(`${API_BASE}/api/hr/request_reveal`, {
                 employer_id: user.id,
                 company_name: user.company_name,
                 employee_id: candidate.employee_id
-            });
-            alert(res.data.message);
+            }, authHeader);
+            Swal.fire({ icon: 'info', title: 'Reveal Requested', text: res.data.message });
         } catch (err) {
-            alert("Failed to send reveal request.");
+            Swal.fire({ icon: 'error', title: 'Request Failed', text: 'Failed to send reveal request.' });
         }
     };
 
     // --- Real-Time Chat Logic (Enterprise P2P) ---
     const initWebSocket = () => {
-        if (wsRef.current) return; // Already connected
+        if (wsRef.current) return;
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsHost = API_BASE.replace(/^http(s?):\/\//, ''); // Clean API BASE for WS
+        const wsHost = API_BASE.replace(/^http(s?):\/\//, '');
 
         const wsUrl = `${wsProtocol}//${wsHost}/ws/chat/${user.id}`;
         wsRef.current = new WebSocket(wsUrl);
@@ -199,7 +780,6 @@ export default function EmployerDashboard({ user, setUser }) {
         wsRef.current.onmessage = (event) => {
             const msg = JSON.parse(event.data);
             setChatHistory(prev => [...prev, msg]);
-            // Auto-scroll logic happens in useEffect below
         };
 
         wsRef.current.onclose = () => { wsRef.current = null; };
@@ -244,16 +824,16 @@ export default function EmployerDashboard({ user, setUser }) {
 
     // --- Dynamic Workforce Engine ---
     const calculateWorkforceStats = () => {
-        const total = activeEmployees.length || 1;
+        const total = (activeEmployees.employees?.length || 0) || 1;
         let males = 0, females = 0, trans = 0;
         let under1 = 0, under3 = 0, over3 = 0;
 
-        activeEmployees.forEach(emp => {
+        (activeEmployees.employees || []).forEach(emp => {
             if (emp.gender === 'Male') males++;
             else if (emp.gender === 'Female') females++;
             else if (emp.gender === 'Transgender') trans++;
 
-            const job = emp.experience?.find(e => e.end_date === 'Present' && e.firm === user?.company_name);
+            const job = emp.experience?.find(e => e.end_date === 'Present' && e.firm?.toLowerCase().trim() === user?.company_name?.toLowerCase().trim());
             if (job && job.start_date) {
                 const yrs = (new Date() - new Date(job.start_date)) / (1000 * 60 * 60 * 24 * 365);
                 if (yrs < 1) under1++;
@@ -269,15 +849,39 @@ export default function EmployerDashboard({ user, setUser }) {
     };
     const stats = calculateWorkforceStats();
 
-    const pwdStrength = passwordForm.newPassword.length >= 8 ? (/[A-Z]/.test(passwordForm.newPassword) && /[0-9!@#$]/.test(passwordForm.newPassword) ? 100 : 60) : (passwordForm.newPassword.length > 0 ? 30 : 0);
+    const pwdStrength = (pwd => {
+        let score = 0;
+        if (!pwd) return 0;
+        if (pwd.length >= 8) score += 25;
+        if (/[A-Z]/.test(pwd)) score += 25;
+        if (/[a-z]/.test(pwd)) score += 25;
+        if (/[0-9]/.test(pwd) || /[^A-Za-z0-9]/.test(pwd)) score += 25;
+        return score;
+    })(passwordForm.newPassword);
     const passwordsMatch = passwordForm.newPassword && passwordForm.newPassword === passwordForm.confirmPassword;
+    // --- Helper to calculate age from DOB ---
+    const calculateAge = (dob) => {
+        if (!dob || dob === "N/A" || dob === "Hidden by Incognito") return "N/A";
+        const birthDate = new Date(dob);
+        if (isNaN(birthDate)) return "N/A";
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age;
+    };
 
     return (
-        <div className="flex min-h-screen animated-gradient-bg text-slate-100 relative overflow-hidden">
+        <div className="flex min-h-screen text-slate-100 relative overflow-hidden bg-transparent">
 
-            {/* DECORATIVE FLOATING ORBS */}
-            <div className="orb orb-primary w-96 h-96 -top-48 -left-48" />
-            <div className="orb orb-accent w-80 h-80 top-1/2 -right-40" />
+            {/* DECORATIVE FLOATING ORBS (Extra depth for dashboard) */}
+            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+                <div className="orb orb-primary w-96 h-96 -top-48 -left-48 opacity-20" />
+                <div className="orb orb-accent w-80 h-80 top-1/2 -right-40 opacity-15" />
+                <div className="orb orb-cyan w-64 h-64 bottom-0 left-1/4 opacity-10" />
+            </div>
 
             {/* SIDEBAR */}
             <div className="w-72 flex flex-col glass-sidebar z-10 relative">
@@ -297,22 +901,25 @@ export default function EmployerDashboard({ user, setUser }) {
                             { id: 'post_job', icon: Briefcase, label: 'Post Recruitment' },
                             { id: 'applications', icon: Users, label: 'Candidate CRM' },
                             { id: 'notifications', icon: Bell, label: 'Notifications' },
-                            { id: 'approvals', icon: FileSignature, label: 'Ledger Approvals', badge: pendingRequests.relieve.length + pendingRequests.onboarding.length },
-                            //{ id: 'security', icon: KeyRound, label: 'Security' },
-                        ].map((item) => (
-                            <button key={item.id} onClick={() => {
-                                setActiveTab(item.id);
-                                if (item.id === 'notifications') markNotificationsRead();
-                            }} className={`w-full flex items-center justify-between p-3 rounded-xl font-medium transition-all duration-200 ${activeTab === item.id ? 'sidebar-tab-active' : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-300'}`}>
+                            { id: 'approvals', icon: FileSignature, label: 'Ledger Approvals', badge: (pendingRequests.relieve?.length || 0) + (pendingRequests.onboarding?.length || 0) },
+                        ].map((item, idx) => (
+                            <button
+                                key={item.id}
+                                onClick={() => {
+                                    setActiveTab(item.id);
+                                    if (item.id === 'notifications') markNotificationsRead();
+                                }}
+                                className={`w-full flex items-center justify-between p-3 rounded-xl font-medium transition-all duration-200 ${activeTab === item.id ? 'sidebar-tab-active' : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-300'}`}
+                            >
                                 <div className="flex items-center"><item.icon className={`mr-3 w-5 h-5 ${activeTab === item.id ? 'text-indigo-400' : 'text-slate-600'}`} /> {item.label}</div>
                                 {item.id === 'notifications' && unreadCount > 0 && <span className="ml-auto bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full">{unreadCount}</span>}
-                                {item.badge > 0 && item.id !== 'notifications' && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${activeTab === item.id ? 'bg-indigo-400/20 text-indigo-300' : 'bg-rose-500/20 text-rose-400'}`}>{item.badge}</span>}
+                                {(item.badge || 0) > 0 && item.id !== 'notifications' && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${activeTab === item.id ? 'bg-indigo-400/20 text-indigo-300' : 'bg-rose-500/20 text-rose-400'}`}>{item.badge}</span>}
                             </button>
                         ))}
                     </nav>
                 </div>
                 <div className="mt-auto p-8 border-t border-white/[0.04]">
-                    <button onClick={() => setUser(null)} className="w-full flex items-center p-3 rounded-xl text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-all font-medium">
+                    <button onClick={handleLogout} className="w-full flex items-center p-3 rounded-xl text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-all font-medium">
                         <LogOut className="mr-3 w-5 h-5" /> Log Out
                     </button>
                 </div>
@@ -320,23 +927,66 @@ export default function EmployerDashboard({ user, setUser }) {
 
             {/* MAIN WORKSPACE */}
             <div className="flex-1 flex flex-col h-screen overflow-y-auto relative z-10">
-                <header className="h-20 px-10 flex items-center justify-between glass-header sticky top-0 z-40">
-                    <div className="flex items-center space-x-2">
-                        <Building2 className="w-6 h-6 text-indigo-500" />
-                        <span className="text-xl font-black tracking-tighter text-white">CETS HR</span>
+                <header className="h-28 px-10 flex items-center justify-between glass-header sticky top-0 z-50">
+                    <div className="flex flex-col">
+                        <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
+                            <Building2 className="w-5 h-5 text-indigo-400" />
+                            Welcome back, <span className="text-indigo-400">{user?.company_name || 'Partner'}</span>
+                        </h1>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Employer Command Center • Workforce Ledger</p>
+                        <div className="flex items-center gap-3 mt-1.5">
+                            <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]">
+                                <ShieldCheck className="w-2.5 h-2.5 text-emerald-400" />
+                                <span className="text-[8px] font-black uppercase tracking-tighter text-emerald-400/80">Secured by Blockchain</span>
+                            </div>
+                            <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.05)]">
+                                <Activity className="w-2.5 h-2.5 text-indigo-400 animate-pulse" />
+                                <span className="text-[8px] font-black uppercase tracking-tighter text-indigo-400/80">Protected by Cognitive Firewall</span>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="flex items-center space-x-6">
                         {/* NOTIFICATION BELL */}
-                        <button onClick={() => { setActiveTab('notifications'); markNotificationsRead(); }} className={`relative p-2.5 rounded-full transition-all bg-white/[0.06] hover:bg-white/[0.1] ${unreadCount > 0 ? 'glow-pulse' : ''}`}>
-                            <Bell className="w-5 h-5" />
-                            {unreadCount > 0 && (
-                                <span className="absolute top-0 right-0 flex h-3 w-3">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500 border-2 border-slate-900"></span>
-                                </span>
-                            )}
-                        </button>
+                        <div className="relative" ref={notificationDropdownRef}>
+                            <button onClick={() => setShowNotificationDropdown(!showNotificationDropdown)} className={`relative p-2.5 rounded-full transition-all bg-white/[0.06] hover:bg-white/[0.1] ${unreadCount > 0 ? 'glow-pulse' : ''}`}>
+                                <Bell className="w-5 h-5" />
+                                {unreadCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 border-2 border-slate-900 text-[9px] font-bold text-white shadow-lg z-10">
+                                        {unreadCount > 9 ? '9+' : unreadCount}
+                                    </span>
+                                )}
+                            </button>
+                            <AnimatePresence>
+                                {showNotificationDropdown && (
+                                    <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ type: "spring", stiffness: 300, damping: 25 }} className="absolute right-0 mt-3 w-80 shadow-2xl glass-card overflow-hidden !bg-slate-900/95 z-50 border border-white/[0.08]">
+                                        <div className="p-3 border-b border-white/[0.06] flex justify-between items-center bg-white/[0.02]">
+                                            <p className="text-sm font-bold flex items-center"><Bell className="w-4 h-4 mr-2 text-indigo-400" /> Notifications</p>
+                                            <button onClick={markNotificationsRead} className="text-[10px] text-indigo-400 font-bold hover:text-indigo-300 transition-colors">Mark all read</button>
+                                        </div>
+                                        <div className="max-h-[300px] overflow-y-auto">
+                                            {notifications.length === 0 ? (
+                                                <div className="p-6 text-center text-slate-500 italic text-xs">No new notifications.</div>
+                                            ) : (
+                                                notifications.slice().reverse().slice(0, 5).map((n, idx) => (
+                                                    <div key={idx} className={`p-4 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.04] transition-colors ${!n.is_read ? 'bg-indigo-500/[0.03]' : ''}`}>
+                                                        <p className="text-xs font-medium text-slate-300 leading-relaxed line-clamp-2">{n.message}</p>
+                                                        <span className="text-[9px] text-slate-500 mt-2 block font-mono">{new Date(n.timestamp || Date.now()).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                        {notifications.length > 5 && (
+                                            <div className="p-2 border-t border-white/[0.06]">
+                                                <button onClick={() => { setActiveTab('notifications'); setShowNotificationDropdown(false); markNotificationsRead(); }} className="w-full py-2 rounded-lg text-xs text-indigo-400 hover:bg-indigo-500/10 transition-colors font-bold">
+                                                    Show All
+                                                </button>
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
 
                         {/* PROFILE AVATAR DROPDOWN */}
                         <div className="relative" ref={profileDropdownRef}>
@@ -348,7 +998,7 @@ export default function EmployerDashboard({ user, setUser }) {
                             </button>
                             <AnimatePresence>
                                 {showProfileDropdown && (
-                                    <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ type: "spring", stiffness: 300, damping: 25 }} className="absolute right-0 mt-3 w-56 rounded-2xl shadow-2xl glass-card overflow-hidden !bg-slate-900/95 border border-white/[0.08]">
+                                    <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ type: "spring", stiffness: 300, damping: 25 }} className="absolute right-0 mt-3 w-56 shadow-2xl glass-card overflow-hidden !bg-slate-900/95">
                                         <div className="p-3 border-b border-white/[0.06]">
                                             <p className="text-sm font-bold truncate">{user?.company_name}</p>
                                             <p className="text-xs text-slate-500 font-mono truncate">{user?.id}</p>
@@ -363,14 +1013,6 @@ export default function EmployerDashboard({ user, setUser }) {
                                             <button onClick={() => { setActiveTab('security'); setShowProfileDropdown(false); }} className="w-full flex items-center p-2.5 rounded-xl text-sm text-slate-300 hover:bg-white/[0.06] hover:text-indigo-400 transition-all font-medium">
                                                 <KeyRound className="w-4 h-4 mr-3 text-slate-500" /> Security
                                             </button>
-                                            <button onClick={() => { setActiveTab('profile'); setShowProfileDropdown(false); }} className="w-full flex items-center p-2.5 rounded-xl text-sm text-slate-300 hover:bg-white/[0.06] hover:text-indigo-400 transition-all font-medium">
-                                                <Building2 className="w-4 h-4 mr-3 text-slate-500" /> Home
-                                            </button>
-                                        </div>
-                                        <div className="p-2 border-t border-white/[0.06]">
-                                            <button onClick={() => { setUser(null); }} className="w-full flex items-center p-2.5 rounded-xl text-sm text-rose-400 hover:bg-rose-500/10 transition-all font-medium">
-                                                <LogOut className="w-4 h-4 mr-3" /> Log Out
-                                            </button>
                                         </div>
                                     </motion.div>
                                 )}
@@ -380,26 +1022,47 @@ export default function EmployerDashboard({ user, setUser }) {
                 </header>
 
                 <div className="p-10">
-                    <AnimatePresence mode="wait">
+                    <AnimatePresence>
 
                         {/* TAB 1: PROFILE */}
                         {activeTab === 'profile' && (
                             <motion.div key="profile" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-5xl space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <div className="stat-card bg-gradient-to-br from-indigo-500/[0.06] to-transparent">
                                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Active Workforce</p>
-                                        <h3 className="text-5xl font-black text-indigo-400">{activeEmployees.length}</h3>
+                                        <h3 className="text-5xl font-black text-indigo-400">{companyAnalytics.active_workforce}</h3>
                                         <p className="text-xs mt-2 font-medium text-slate-400">Currently deployed on ledger</p>
                                     </div>
                                     <div className="stat-card bg-gradient-to-br from-emerald-500/[0.06] to-transparent" style={{ "--stat-color": "#10b981" }}>
                                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Avg Retention Rate</p>
-                                        <h3 className="text-5xl font-black text-emerald-400">2.8 <span className="text-2xl font-bold text-slate-500">Yrs</span></h3>
-                                        <p className="text-xs mt-2 font-medium text-slate-400">Above industry standard</p>
+                                        <h3 className="text-5xl font-black text-emerald-400">{companyAnalytics.avg_retention_rate} <span className="text-2xl font-bold text-slate-500">Yrs</span></h3>
+                                        <p className="text-xs mt-2 font-medium text-slate-400">Platform-wide average</p>
                                     </div>
-                                    <div className="stat-card bg-gradient-to-br from-amber-500/[0.06] to-transparent">
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Last Login</p>
-                                        <h3 className="text-lg font-black text-amber-400 mt-2">{user?.last_login ? new Date(user.last_login).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'First Session'}</h3>
-                                        <p className="text-xs mt-3 font-medium text-slate-500 font-mono">IP: {user?.last_login_ip || 'N/A'}</p>
+                                    <div className="stat-card flex flex-col justify-between bg-gradient-to-br from-amber-500/[0.06] to-transparent">
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Last Login</p>
+                                            <h3 className="text-lg font-black text-amber-400 mt-1 leading-tight">{user?.last_login ? new Date(user.last_login).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'First Session'}</h3>
+                                        </div>
+                                        <div className="flex items-center justify-between mt-auto pt-2 border-t border-white/[0.06]">
+                                            <p className="text-[10px] mt-2 font-medium text-slate-500 font-mono">IP: {user?.last_login_ip || 'N/A'}</p>
+                                            <div title={user?.last_login_device || 'Unknown Device'} className="p-1.5 rounded-lg bg-white/[0.04]">
+                                                {getDeviceIcon(user?.last_login_device)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="stat-card flex flex-col justify-between bg-gradient-to-br from-rose-500/[0.06] to-transparent" style={{ "--stat-color": "#f43f5e" }}>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Workforce Trust Index</p>
+                                            <h3 className="text-5xl font-black text-rose-400">{companyAnalytics.workforce_trust_index} <span className="text-xl font-bold text-slate-500">/ 10</span></h3>
+                                        </div>
+                                        <div className="w-full h-1.5 bg-white/[0.04] rounded-full mt-4 overflow-hidden border border-white/[0.06]">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${(companyAnalytics.workforce_trust_index / 10) * 100}%` }}
+                                                className="h-full bg-gradient-to-r from-rose-500 to-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.4)]"
+                                            />
+                                        </div>
+                                        <p className="text-[10px] mt-2 font-medium text-slate-400 uppercase tracking-tighter">Verified Aggregate Performance</p>
                                     </div>
                                 </div>
 
@@ -423,24 +1086,82 @@ export default function EmployerDashboard({ user, setUser }) {
                             <motion.div key="workforce" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-5xl space-y-6">
                                 <div className="glass-card p-8">
                                     <h2 className="text-2xl font-bold mb-6 flex items-center"><PieChart className="mr-3 text-indigo-400" /> Real-Time Diversity Analytics</h2>
-                                    {activeEmployees.length === 0 ? (
+                                    {isWorkforceLoading || isAnalyticsLoading ? (
+                                        <div className="space-y-8 animate-pulse">
+                                            <div>
+                                                <div className="h-4 w-32 bg-white/[0.05] rounded mb-3"></div>
+                                                <div className="w-full h-8 rounded-full bg-white/[0.05]"></div>
+                                            </div>
+                                            <div>
+                                                <div className="h-4 w-40 bg-white/[0.05] rounded mb-3"></div>
+                                                <div className="w-full h-8 rounded-full bg-white/[0.05]"></div>
+                                            </div>
+                                        </div>
+                                    ) : (!activeEmployees.employees || activeEmployees.employees.length === 0) ? (
                                         <p className="text-center text-slate-500 italic py-8 border border-dashed rounded-xl border-white/[0.08]">Hire employees to generate real-time analytics.</p>
                                     ) : (
                                         <div className="space-y-8">
-                                            <div>
-                                                <div className="flex justify-between text-sm font-bold mb-2"><span>Gender Diversity</span><span className="text-slate-500">Based on Active Roster</span></div>
-                                                <div className="w-full h-8 rounded-full overflow-hidden flex shadow-inner bg-white/[0.04]">
-                                                    {stats.gender.m > 0 && <div className="bg-indigo-500 h-full flex items-center justify-center text-[10px] text-white font-bold transition-all duration-500" style={{ width: `${stats.gender.m}%` }}>{stats.gender.m}% Male</div>}
-                                                    {stats.gender.f > 0 && <div className="bg-purple-400 h-full flex items-center justify-center text-[10px] text-white font-bold transition-all duration-500" style={{ width: `${stats.gender.f}%` }}>{stats.gender.f}% Female</div>}
-                                                    {stats.gender.t > 0 && <div className="bg-emerald-400 h-full flex items-center justify-center text-[10px] text-white font-bold transition-all duration-500" style={{ width: `${stats.gender.t}%` }}>{stats.gender.t}% Trans</div>}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex flex-col items-center">
+                                                    <h4 className="text-sm font-bold text-slate-400 mb-6 w-full text-left">Gender Diversity</h4>
+                                                    <div className="w-full max-w-[200px]">
+                                                        <Doughnut
+                                                            data={{
+                                                                labels: ['Male', 'Female', 'Trans'],
+                                                                datasets: [{
+                                                                    data: [stats.gender.m, stats.gender.f, stats.gender.t],
+                                                                    backgroundColor: ['#3b82f6', '#ec4899', '#10b981'],
+                                                                    hoverOffset: 4,
+                                                                    borderWidth: 0
+                                                                }]
+                                                            }}
+                                                            options={{
+                                                                plugins: {
+                                                                    legend: {
+                                                                        position: 'bottom',
+                                                                        labels: { color: '#94a3b8', font: { size: 10, weight: 'bold' }, padding: 20 }
+                                                                    }
+                                                                },
+                                                                cutout: '70%'
+                                                            }}
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div>
-                                                <div className="flex justify-between text-sm font-bold mb-2"><span>Employee Tenure Breakdown</span></div>
-                                                <div className="w-full h-8 rounded-full overflow-hidden flex shadow-inner bg-white/[0.04]">
-                                                    {stats.tenure.u1 > 0 && <div className="bg-cyan-400 h-full flex items-center justify-center text-[10px] text-white font-bold transition-all duration-500" style={{ width: `${stats.tenure.u1}%` }}>{stats.tenure.u1}% (&lt; 1yr)</div>}
-                                                    {stats.tenure.u3 > 0 && <div className="bg-indigo-500 h-full flex items-center justify-center text-[10px] text-white font-bold transition-all duration-500" style={{ width: `${stats.tenure.u3}%` }}>{stats.tenure.u3}% (1-3yrs)</div>}
-                                                    {stats.tenure.o3 > 0 && <div className="bg-indigo-700 h-full flex items-center justify-center text-[10px] text-white font-bold transition-all duration-500" style={{ width: `${stats.tenure.o3}%` }}>{stats.tenure.o3}% (&gt; 3yrs)</div>}
+
+                                                <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+                                                    <h4 className="text-sm font-bold text-slate-400 mb-6">Employee Tenure Breakdown</h4>
+                                                    <div className="h-[200px]">
+                                                        <Bar
+                                                            data={{
+                                                                labels: ['< 1yr', '1-3yrs', '> 3yrs'],
+                                                                datasets: [{
+                                                                    label: 'Percentage (%)',
+                                                                    data: [stats.tenure.u1, stats.tenure.u3, stats.tenure.o3],
+                                                                    backgroundColor: ['#06b6d4', '#6366f1', '#9333ea'],
+                                                                    borderRadius: 8,
+                                                                }]
+                                                            }}
+                                                            options={{
+                                                                responsive: true,
+                                                                maintainAspectRatio: false,
+                                                                scales: {
+                                                                    y: {
+                                                                        beginAtZero: true,
+                                                                        max: 100,
+                                                                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                                                                        ticks: { color: '#64748b', font: { size: 10 } }
+                                                                    },
+                                                                    x: {
+                                                                        grid: { display: false },
+                                                                        ticks: { color: '#94a3b8', font: { size: 10, weight: 'bold' } }
+                                                                    }
+                                                                },
+                                                                plugins: {
+                                                                    legend: { display: false }
+                                                                }
+                                                            }}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -448,111 +1169,231 @@ export default function EmployerDashboard({ user, setUser }) {
                                 </div>
 
                                 <div className="glass-card p-8">
-                                    <h3 className="text-xl font-bold mb-6">Current Roster</h3>
-                                    <div className="space-y-3">
-                                        {activeEmployees.length === 0 ? <p className="text-slate-500 italic">No employees currently active on ledger.</p> : activeEmployees.map((emp, i) => (
-                                            <div key={i} className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] flex justify-between items-center hover:bg-white/[0.05] transition-colors">
-                                                <div className="flex items-center space-x-4">
-                                                    <div className="w-10 h-10 bg-indigo-500/10 rounded-full flex items-center justify-center border border-indigo-500/20"><User className="text-indigo-400 w-5 h-5" /></div>
-                                                    <div><p className="font-bold">{emp.name}</p><p className="text-xs font-mono text-slate-500">{emp.employee_id}</p></div>
-                                                </div>
-                                                <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-xs font-bold flex items-center"><ShieldCheck className="w-3 h-3 mr-1" /> Active</span>
+                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                                        <h3 className="text-xl font-bold">Current Roster</h3>
+
+                                        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                                            {/* Search Bar */}
+                                            <div className="relative flex-1 md:w-64 min-w-[200px]">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search name or ID..."
+                                                    value={searchTerm}
+                                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                                    className="glass-input w-full pl-10 py-2.5 text-sm"
+                                                />
                                             </div>
-                                        ))}
+
+                                            {/* Sort Select */}
+                                            <div className="relative md:w-48 min-w-[150px]">
+                                                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                                                <select
+                                                    value={sortOption}
+                                                    onChange={(e) => setSortOption(e.target.value)}
+                                                    className="glass-input w-full pl-10 py-2.5 text-sm appearance-none cursor-pointer"
+                                                >
+                                                    <option value="joining_desc" className="bg-slate-900">Joined: Newest</option>
+                                                    <option value="joining_asc" className="bg-slate-900">Joined: Oldest</option>
+                                                    <option value="name_az" className="bg-slate-900">Name: A-Z</option>
+                                                    <option value="name_za" className="bg-slate-900">Name: Z-A</option>
+                                                    <option value="id_asc" className="bg-slate-900">ID: Ascending</option>
+                                                    <option value="id_desc" className="bg-slate-900">ID: Descending</option>
+                                                </select>
+                                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </motion.div>
-                        )}
 
-                        {/* TAB 3: POST RECRUITMENT */}
-                        {activeTab === 'post_job' && (
-                            <motion.div key="post_job" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-4xl space-y-6">
-                                <div className="glass-card p-8">
-                                    <h2 className="text-2xl font-bold flex items-center mb-2"><Briefcase className="mr-3 text-indigo-400" /> Broadcast Job Opening</h2>
-                                    <p className="text-slate-500 text-sm mb-8">Publish a highly-detailed requirement directly to the global noticeboard.</p>
-
-                                    <form onSubmit={handlePostJob} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                                        <div className="space-y-2 md:col-span-2">
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Job Title</label>
-                                            <input required type="text" value={newJob.job_title} onChange={e => setNewJob({ ...newJob, job_title: e.target.value })} className="glass-input w-full" placeholder="e.g. Senior Data Scientist" />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Number of Postings</label>
-                                            <input required type="number" min="1" value={newJob.vacancy} onChange={e => setNewJob({ ...newJob, vacancy: e.target.value })} className="glass-input w-full" placeholder="e.g. 5" />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Work Mode / Location</label>
-                                            <div className="flex p-1 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-                                                {['Onsite', 'Hybrid', 'Remote'].map(mode => (
-                                                    <button type="button" key={mode} onClick={() => setNewJob({ ...newJob, location: mode })} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${newJob.location === mode ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:bg-white/[0.06]'}`}>
-                                                        {mode}
-                                                    </button>
+                                    <div className="space-y-3">
+                                        {isWorkforceLoading ? (
+                                            <div className="space-y-4">
+                                                {[1, 2, 3].map(i => (
+                                                    <div key={i} className="h-20 w-full rounded-xl bg-white/[0.03] border border-white/[0.06] animate-pulse"></div>
                                                 ))}
                                             </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Experience Required</label>
-                                            <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-                                                <button type="button" onClick={() => setNewJob({ ...newJob, experience: Math.max(0, newJob.experience - 1) })} className="p-2 bg-white/[0.06] rounded-lg hover:bg-white/[0.1] transition-colors"><Minus className="w-4 h-4" /></button>
-                                                <span className="font-bold text-lg">{newJob.experience === 0 ? 'Fresher' : `${newJob.experience} Years`}</span>
-                                                <button type="button" onClick={() => setNewJob({ ...newJob, experience: newJob.experience + 1 })} className="p-2 bg-white/[0.06] rounded-lg hover:bg-white/[0.1] transition-colors"><Plus className="w-4 h-4" /></button>
+                                        ) : filteredAndSortedEmployees.length === 0 ? (
+                                            <div className="text-center py-12 border border-dashed rounded-2xl border-white/[0.08]">
+                                                <Search className="w-8 h-8 text-slate-600 mx-auto mb-3" />
+                                                <p className="text-slate-500 italic">
+                                                    {searchTerm ? "No employees match your search criteria." : "No employees currently active on ledger."}
+                                                </p>
                                             </div>
-                                        </div>
+                                        ) : (
+                                            filteredAndSortedEmployees.map((emp, i) => (
+                                                <RosterEmployeeRow
+                                                    key={emp.employee_id || emp.id || i}
+                                                    emp={emp}
+                                                    handleEmployeeClick={handleEmployeeClick}
+                                                    setStealthTarget={setStealthTarget}
+                                                    setShowStealthModal={setShowStealthModal}
+                                                    user={user}
+                                                />
+                                            ))
+                                        )}
+                                    </div>
 
-                                        <div className="space-y-2 md:col-span-2">
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex justify-between">
-                                                <span>Salary Package (LPA)</span>
-                                                <span className="text-indigo-400 font-black text-lg">₹{newJob.salary},00,000</span>
-                                            </label>
-                                            <input type="range" min="1" max="50" value={newJob.salary} onChange={e => setNewJob({ ...newJob, salary: parseInt(e.target.value) })} className="w-full h-2 bg-white/[0.06] rounded-lg appearance-none cursor-pointer accent-indigo-600" />
-                                            <div className="flex justify-between text-xs text-slate-500 font-mono mt-1"><span>₹1L</span><span>₹50L+</span></div>
-                                        </div>
-
-                                        <div className="space-y-2 md:col-span-2">
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex justify-between">Required Skills <span>{newJob.skills.length}/10</span></label>
-                                            <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                                                <div className="flex flex-wrap gap-2 mb-3">
-                                                    {newJob.skills.map((skill, i) => (
-                                                        <span key={i} className="tag-pill">{skill} <X className="w-3 h-3 cursor-pointer hover:text-rose-400" onClick={() => setNewJob({ ...newJob, skills: newJob.skills.filter((_, idx) => idx !== i) })} /></span>
-                                                    ))}
-                                                </div>
-                                                <div className="flex">
-                                                    <input disabled={newJob.skills.length >= 10} type="text" placeholder="Type a skill and press Enter" value={skillInput} onChange={(e) => setSkillInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())} className="glass-input flex-1 p-2 text-sm rounded-r-none disabled:opacity-40" />
-                                                    <button type="button" disabled={newJob.skills.length >= 10} onClick={handleAddSkill} className="px-4 bg-indigo-500/20 text-indigo-400 rounded-r-xl border border-l-0 border-white/[0.08] disabled:opacity-40"><Plus className="w-4 h-4" /></button>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2 md:col-span-2">
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Application Cut-off (Date & Time)</label>
-                                            <input required type="datetime-local" value={newJob.lastDate} onChange={e => setNewJob({ ...newJob, lastDate: e.target.value })} className="glass-input w-full [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
-                                        </div>
-
-                                        <div className="md:col-span-2 pt-4">
-                                            <button type="submit" className="btn-premium w-full py-4 rounded-xl text-sm">Publish to Global Noticeboard</button>
-                                        </div>
-                                    </form>
+                                    <Pagination
+                                        currentPage={activeEmployees.page}
+                                        totalItems={activeEmployees.total}
+                                        itemsPerPage={30}
+                                        onPageChange={(page) => setActiveEmployees(p => ({ ...p, page }))}
+                                    />
                                 </div>
                             </motion.div>
                         )}
 
+                        {/* TAB 3: POST RECRUITMENT (Redesigned & Stabilized) */}
+                        {activeTab === 'post_job' && (
+                            <motion.div key="post_job" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.4, ease: "easeOut" }} className="max-w-6xl space-y-8">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div>
+                                        <h2 className="text-3xl font-black flex items-center tracking-tight text-white"><Briefcase className="mr-4 w-8 h-8 text-indigo-400" /> Broadcast Job Opening</h2>
+                                        <p className="text-slate-500 font-medium mt-1">Publish a high-fidelity requirement to the global blockchain noticeboard.</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <div className="px-4 py-2 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold flex items-center">
+                                            <ShieldCheck className="w-3.5 h-3.5 mr-2" /> Verified Posting
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <form onSubmit={handlePostJob} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    {/* Column 1: Core Identity */}
+                                    <div className="lg:col-span-2 space-y-6">
+                                        <div className="glass-card p-6 space-y-6">
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Job Designation</label>
+                                                <div className="relative">
+                                                    <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-400" />
+                                                    <input required type="text" value={newJob.job_title} onChange={e => setNewJob({ ...newJob, job_title: e.target.value })} className="glass-input w-full pl-12 !py-4 text-white font-bold" placeholder="e.g. Lead Systems Architect" />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-3">
+                                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Open Vacancies</label>
+                                                    <div className="relative">
+                                                        <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-400" />
+                                                        <input required type="number" min="1" value={newJob.vacancy} onChange={e => setNewJob({ ...newJob, vacancy: e.target.value })} className="glass-input w-full pl-12 !py-4 font-bold" />
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Operational Mode</label>
+                                                    <div className="flex p-1.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] shadow-inner">
+                                                        {['Onsite', 'Hybrid', 'Remote'].map(mode => (
+                                                            <button type="button" key={mode} onClick={() => setNewJob({ ...newJob, location: mode })} className={`flex-1 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-tighter transition-all ${newJob.location === mode ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-500 hover:bg-white/[0.04]'}`}>
+                                                                {mode}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="glass-card p-6 space-y-6">
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex justify-between">
+                                                    Salary Package (LPA)
+                                                    <span className="text-indigo-400 font-black text-lg">₹ {newJob.salary}.00 L</span>
+                                                </label>
+                                                <div className="px-4 py-8 rounded-2xl bg-white/[0.02] border border-white/[0.05] relative">
+                                                    <input type="range" min="1" max="50" value={newJob.salary} onChange={e => setNewJob({ ...newJob, salary: parseInt(e.target.value) })} className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
+                                                    <div className="flex justify-between text-[9px] text-slate-500 font-black uppercase mt-4 tracking-tighter">
+                                                        <span>₹ 1L (Minimum)</span>
+                                                        <span>₹ 25L (Mid)</span>
+                                                        <span>₹ 50L+ (Executive)</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex justify-between">
+                                                    Technical Skills & Expertise
+                                                    <span className="text-slate-500">{newJob.skills.length}/10 Tagged</span>
+                                                </label>
+                                                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05]">
+                                                    <div className="flex flex-wrap gap-2 mb-4 min-h-[40px]">
+                                                        {newJob.skills.length === 0 && <p className="text-[10px] text-slate-600 italic py-2">No skills tagged yet...</p>}
+                                                        {newJob.skills.map((skill, i) => (
+                                                            <motion.span initial={{ scale: 0.8 }} animate={{ scale: 1 }} key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold group">
+                                                                {skill}
+                                                                <X className="w-3.5 h-3.5 cursor-pointer opacity-50 group-hover:opacity-100 hover:text-rose-400 transition-all" onClick={() => setNewJob({ ...newJob, skills: newJob.skills.filter((_, idx) => idx !== i) })} />
+                                                            </motion.span>
+                                                        ))}
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <input disabled={newJob.skills.length >= 10} type="text" placeholder="Add technical skill..." value={skillInput} onChange={(e) => setSkillInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())} className="glass-input flex-1 !p-3.5 text-sm font-medium disabled:opacity-30" />
+                                                        <button type="button" disabled={newJob.skills.length >= 10} onClick={handleAddSkill} className="px-5 bg-indigo-500/15 text-indigo-400 rounded-2xl border border-indigo-500/20 hover:bg-indigo-500 hover:text-white transition-all disabled:opacity-30">
+                                                            <Plus className="w-5 h-5" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Column 2: Side Controls & Summary */}
+                                    <div className="space-y-6">
+                                        <div className="glass-card p-6 space-y-6">
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Experience Level</label>
+                                                <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] shadow-inner">
+                                                    <button type="button" onClick={() => setNewJob({ ...newJob, experience: Math.max(0, newJob.experience - 1) })} className="p-2.5 bg-white/[0.06] rounded-xl hover:bg-rose-500/20 hover:text-rose-400 transition-all border border-white/[0.1]"><Minus className="w-4 h-4" /></button>
+                                                    <div className="text-center flex flex-col">
+                                                        <span className="text-2xl font-black text-white">{newJob.experience === 0 ? '0' : newJob.experience}</span>
+                                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-tighter mt-0.5">{newJob.experience === 0 ? 'Freshers' : 'Years Exp'}</span>
+                                                    </div>
+                                                    <button type="button" onClick={() => setNewJob({ ...newJob, experience: newJob.experience + 1 })} className="p-2.5 bg-white/[0.06] rounded-xl hover:bg-emerald-500/20 hover:text-emerald-400 transition-all border border-white/[0.1]"><Plus className="w-4 h-4" /></button>
+                                                </div>
+                                                                                     <div className="space-y-3">
+                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center">
+                                                    <Calendar className="w-3.5 h-3.5 mr-2 text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+                                                    Application Deadline
+                                                </label>
+                                                <div className="relative">
+                                                    <input required type="datetime-local" value={newJob.lastDate} onChange={e => setNewJob({ ...newJob, lastDate: e.target.value })} className="glass-input w-full px-4 !py-4 text-xs font-bold" />
+                                                </div>
+                                                <p className="text-[9px] text-slate-500 font-medium px-1">Candidates cannot apply after this window closes.</p>
+                                            </div>
+     </div>
+                                        </div>
+
+                                        <div className="glass-card p-6 bg-gradient-to-br from-indigo-600/10 to-transparent border-indigo-500/20">
+                                            <h4 className="text-xs font-black uppercase tracking-widest mb-4 flex items-center"><Sparkles className="w-4 h-4 mr-2 text-indigo-400" /> Posting Summary</h4>
+                                            <ul className="space-y-3 text-[11px] font-bold text-slate-400">
+                                                <li className="flex justify-between items-center"><span className="text-slate-500 uppercase tracking-tighter">Reach</span> <span className="text-white">Global (10k+ Candidates)</span></li>
+                                                <li className="flex justify-between items-center"><span className="text-slate-500 uppercase tracking-tighter">Status</span> <span className="text-indigo-400">Ready to Broadcast</span></li>
+                                            </ul>
+                                            <button type="submit" className="btn-premium w-full mt-8 py-5 rounded-2xl text-xs font-black tracking-widest uppercase shadow-xl shadow-indigo-500/20 border border-indigo-400/30 group">
+                                                Publish Opportunity
+                                                <Send className="w-4 h-4 ml-2 inline transition-transform group-hover:translate-x-1" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </motion.div>
+                        )}
                         {/* TAB 4: CANDIDATE CRM */}
                         {activeTab === 'applications' && (
                             <motion.div key="applications" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-4xl space-y-6">
                                 <div className="glass-card p-8">
                                     <h2 className="text-2xl font-bold flex items-center mb-6"><Users className="mr-3 text-indigo-400" /> Candidate Applications</h2>
                                     <div className="space-y-4">
-                                        {pendingRequests.applications.length === 0 ? <p className="text-slate-500 text-center py-8 italic border border-dashed border-white/[0.08] rounded-xl">No incoming applications yet.</p> : pendingRequests.applications.map((app, i) => (
-                                            <div key={i} className="p-5 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex justify-between items-center hover:border-indigo-500/30 transition-colors cursor-pointer" onClick={() => viewCandidateDetails(app.employee_id)}>
+                                        {pendingRequests.applications.length === 0 ? <p className="text-slate-500 text-center py-8 italic border border-dashed border-white/[0.08] rounded-2xl">No incoming applications yet.</p> : pendingRequests.applications.map((app, i) => (
+                                            <div key={i} className="p-6 rounded-2xl bg-white/5 border border-white/10 flex justify-between items-center hover:border-indigo-500/50 hover:bg-white/[0.08] transition-all cursor-pointer shadow-sm" onClick={() => viewCandidateDetails(app.employee_id)}>
                                                 <div><p className="font-bold text-lg">{app.employee_name}</p><p className="text-sm font-medium text-indigo-400">Applied for: {app.job_title}</p></div>
-                                                <button className="flex items-center px-4 py-2 bg-indigo-500/10 text-indigo-400 rounded-lg text-sm font-bold border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors"><Eye className="w-4 h-4 mr-2" /> Review Profile</button>
+                                                <button className="flex items-center px-5 py-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl text-sm font-bold border border-indigo-500/20 hover:bg-indigo-500 hover:text-white transition-all"><Eye className="w-4 h-4 mr-2" /> Review Profile</button>
                                             </div>
                                         ))}
                                     </div>
+
+                                    <Pagination
+                                        currentPage={pendingRequests.applications_page}
+                                        totalItems={pendingRequests.total_applications}
+                                        itemsPerPage={30}
+                                        onPageChange={(page) => setPendingRequests(p => ({ ...p, applications_page: page }))}
+                                    />
                                 </div>
                             </motion.div>
                         )}
@@ -606,31 +1447,65 @@ export default function EmployerDashboard({ user, setUser }) {
                                     <h2 className="text-2xl font-bold flex items-center mb-6"><Lock className="mr-3 text-indigo-400" /> Master Security Key</h2>
                                     <form onSubmit={async (e) => {
                                         e.preventDefault();
-                                        if (passwordForm.oldPassword === passwordForm.newPassword) { alert("You cannot change your password to your current password."); return; }
-                                        if (pwdStrength < 100) { alert("Please meet all password complexity requirements."); return; }
-                                        if (!passwordsMatch) { alert("Passwords do not match."); return; }
+                                        if (passwordForm.oldPassword === passwordForm.newPassword) {
+                                            Swal.fire({ icon: 'warning', title: 'Invalid Policy', text: "You cannot change your password to your current password." });
+                                            return;
+                                        }
+                                        if (pwdStrength < 100) {
+                                            Swal.fire({ icon: 'warning', title: 'Weak Passkey', text: "Please meet all password complexity requirements." });
+                                            return;
+                                        }
+                                        if (!passwordsMatch) {
+                                            Swal.fire({ icon: 'error', title: 'Mismatch', text: "Passwords do not match." });
+                                            return;
+                                        }
+
+                                        const result = await Swal.fire({
+                                            title: 'Update Passkey?',
+                                            text: 'This will permanently change your organization\'s master security key.',
+                                            icon: 'warning',
+                                            showCancelButton: true,
+                                            confirmButtonColor: '#6366f1',
+                                            cancelButtonColor: '#ef4444',
+                                            confirmButtonText: 'Yes, update now!'
+                                        });
+
+                                        if (!result.isConfirmed) return;
+
                                         try {
                                             await axios.post(`${API_BASE}/api/auth/change_password/${user.id}`, {
                                                 old_password: passwordForm.oldPassword,
                                                 new_password: passwordForm.newPassword,
                                                 confirm_password: passwordForm.confirmPassword
-                                            });
-                                            alert("Password updated securely!");
+                                            }, authHeader);
+                                            Swal.fire({ icon: 'success', title: 'Security Updated', text: "Password updated securely!" });
                                             setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
-                                        } catch (err) { alert(err.response?.data?.detail || "Failed to update password."); }
+                                        } catch (err) {
+                                            Swal.fire({ icon: 'error', title: 'Update Failed', text: err.response?.data?.detail || "Failed to update password." });
+                                        }
                                     }} className="space-y-4">
                                         <div><label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Current Password</label><input type="password" required value={passwordForm.oldPassword} onChange={e => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })} className="glass-input w-full mt-1" /></div>
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">New Password</label>
-                                            <input type="password" required value={passwordForm.newPassword} onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} className="glass-input w-full mt-1" />
-                                            <div className="mt-2">
-                                                <div className="strength-bar"><div className={`strength-bar-fill ${pwdStrength === 100 ? 'bg-gradient-to-r from-emerald-500 to-cyan-400' : 'bg-gradient-to-r from-indigo-500 to-purple-500'}`} style={{ width: `${pwdStrength}%` }}></div></div>
-                                                <p className="text-[10px] text-slate-500 mt-1">Requires: 8+ chars, 1 uppercase, 1 special/number.</p>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block ml-1">New Policy Passkey</label>
+                                            <input type="password" required value={passwordForm.newPassword} onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} className={`glass-input w-full !p-4 !font-mono text-indigo-400 ${pwdStrength === 100 ? 'focus:border-emerald-500/50' : 'focus:border-indigo-500/50'}`} />
+                                            <div className="h-1.5 w-full bg-white/[0.04] rounded-full mt-2 overflow-hidden border border-white/[0.06]">
+                                                <motion.div initial={{ width: 0 }} animate={{ width: `${pwdStrength}%` }} className={`h-full ${pwdStrength <= 25 ? 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.4)]' : pwdStrength <= 50 ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.4)]' : pwdStrength <= 75 ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]'}`} />
                                             </div>
+                                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest flex justify-between mt-1 px-1">
+                                                <span>Security Score: {pwdStrength}%</span>
+                                                <span className="opacity-70">Requires: 8+ Chars, U/L Case, Num/Spec</span>
+                                            </p>
                                         </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex justify-between">Confirm New Password {passwordForm.confirmPassword.length > 0 && <span className={passwordsMatch ? "text-emerald-400" : "text-rose-400"}>{passwordsMatch ? "Matches!" : "Does Not Match"}</span>}</label>
-                                            <input type="password" required value={passwordForm.confirmPassword} onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} className="glass-input w-full mt-1" />
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex justify-between items-center ml-1">
+                                                Confirm New Passkey
+                                                {passwordForm.confirmPassword.length > 0 && (
+                                                    <span className={`text-[8px] font-black uppercase tracking-widest ${passwordsMatch ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                        {passwordsMatch ? 'Match Confirmed ✓' : 'Mismatch detected ⚠'}
+                                                    </span>
+                                                )}
+                                            </label>
+                                            <input type="password" required value={passwordForm.confirmPassword} onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} className={`glass-input w-full !p-4 !font-mono text-indigo-400 ${passwordsMatch ? 'focus:border-emerald-500/50' : 'focus:border-indigo-500/50'}`} />
                                         </div>
                                         <button disabled={pwdStrength < 100 || !passwordsMatch} type="submit" className="btn-premium w-full mt-4 py-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed">Update Protocol</button>
                                     </form>
@@ -685,46 +1560,120 @@ export default function EmployerDashboard({ user, setUser }) {
                 {/* CANDIDATE PREVIEW MODAL */}
                 <AnimatePresence>
                     {selectedCandidate && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full max-w-2xl p-8 rounded-3xl glass-card shadow-2xl overflow-y-auto max-h-[90vh] !bg-slate-900/95">
-                                <div className="flex justify-between items-start mb-6">
-                                    <div>
-                                        <h2 className="text-3xl font-black bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">{selectedCandidate.name}</h2>
-                                        <p className="text-sm font-bold text-slate-500 mt-1 flex items-center">
-                                            {selectedCandidate.dob ? `${new Date().getFullYear() - new Date(selectedCandidate.dob).getFullYear()} Years Old` : 'Age Unlisted'}
-                                            <span className="mx-2">•</span>
-                                            {selectedCandidate.gender || 'Not Specified'}
-                                        </p>
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm shadow-2xl">
+                            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full max-w-4xl max-h-[90vh] overflow-y-auto p-8 rounded-[2rem] glass-card !bg-slate-900/95 border border-white/[0.1]">
+                                <div className="flex justify-between items-start mb-8">
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-24 h-24 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-3xl flex items-center justify-center border border-indigo-500/20 relative shadow-2xl">
+                                            <User className="w-12 h-12 text-indigo-400" />
+                                            {selectedCandidate?.isLoadingDetails && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 rounded-3xl">
+                                                    <div className="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h2 className="text-4xl font-black text-white tracking-tight">{selectedCandidate?.name || "Loading..."}</h2>
+                                            <div className="flex flex-wrap items-center gap-3 mt-3">
+                                                <span className="text-indigo-400 font-mono font-bold bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-xl text-xs uppercase tracking-widest">{selectedCandidate.employee_id || selectedCandidate.id}</span>
+                                                <div className="h-4 w-px bg-white/[0.1] mx-1 hidden sm:block"></div>
+                                                <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-white/[0.05] border border-white/[0.08]">
+                                                    <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                                                    <span className="text-slate-300 font-bold text-xs">{selectedCandidate.dob || selectedCandidate.personal_info?.dob || "N/A"}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-white/[0.05] border border-white/[0.08]">
+                                                    <User className="w-3.5 h-3.5 text-slate-500" />
+                                                    <span className="text-slate-300 font-bold text-xs">{selectedCandidate.gender || selectedCandidate.personal_info?.gender || "Not Specified"}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                                                    <span className="text-indigo-400 font-black text-xs uppercase tracking-tighter">Age: {calculateAge(selectedCandidate.dob || selectedCandidate.personal_info?.dob)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <button onClick={() => setSelectedCandidate(null)} className="p-2 bg-white/[0.06] rounded-full hover:bg-rose-500/20 hover:text-rose-400 transition-colors"><X className="w-5 h-5" /></button>
+                                    <button onClick={() => setSelectedCandidate(null)} className="p-3 bg-white/[0.05] hover:bg-rose-500/20 hover:text-rose-400 rounded-2xl transition-all border border-white/[0.05]"><X className="w-6 h-6" /></button>
                                 </div>
 
-                                <div className="space-y-6">
-                                    <div>
-                                        <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">About Candidate</h4>
-                                        <p className="text-sm leading-relaxed text-slate-300">{selectedCandidate.about || "This candidate hasn't added a professional summary yet."}</p>
+                                {/* PRIMARY INSIGHTS GRID */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                                    {/* ACADEMIC STANDING */}
+                                    <div className="glass-card p-5 border-l-4 border-l-indigo-500 flex flex-col justify-between bg-white/[0.02]">
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">Academic Standing</p>
+                                            <h4 className="text-lg font-black text-white leading-tight">
+                                                {typeof selectedCandidate?.academic_standing === 'object' ? selectedCandidate.academic_standing.description :
+                                                    (typeof selectedCandidate?.analytics?.academic_standing === 'object' ? selectedCandidate.analytics.academic_standing.description : "Incomplete Data")}
+                                            </h4>
+                                        </div>
+                                        <div className="mt-4 flex items-center justify-between">
+                                            <span className="text-2xl font-black text-indigo-400">
+                                                {typeof selectedCandidate?.academic_standing === 'object' ? selectedCandidate.academic_standing.grade :
+                                                    (typeof selectedCandidate?.analytics?.academic_standing === 'object' ? selectedCandidate.analytics.academic_standing.grade : "N/A")}
+                                            </span>
+                                            <div className="px-2 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+                                                <GraduationCap className="w-4 h-4 text-indigo-400" />
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="p-4 rounded-xl bg-indigo-500/[0.06] border border-indigo-500/10">
-                                            <p className="text-xs font-bold uppercase text-slate-500 mb-1">Academic Standing</p>
-                                            <p className="font-bold text-lg">{selectedCandidate.average_academic_score ? `${selectedCandidate.average_academic_score}%` : 'N/A'}</p>
+                                    {/* AVERAGE SCORE */}
+                                    <div className="glass-card p-5 border-l-4 border-l-emerald-500 flex flex-col justify-between bg-white/[0.02]">
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">Average Academic Score</p>
+                                            <h4 className="text-4xl font-black text-emerald-400">
+                                                {selectedCandidate?.average_academic_score || selectedCandidate?.analytics?.average_academic_score || "0.0"}
+                                                <span className="text-xl text-slate-500 ml-1">%</span>
+                                            </h4>
                                         </div>
-                                        <div className="p-4 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/10">
-                                            <p className="text-xs font-bold uppercase text-slate-500 mb-1">Current Employer</p>
-                                            <p className="font-bold text-lg">
-                                                {selectedCandidate.experience?.find(e => e.end_date === 'Present')?.firm || 'Currently Open to Work'}
-                                            </p>
-                                        </div>
+                                        <p className="text-[10px] text-slate-500 font-bold uppercase mt-2 tracking-widest">Aggregate across all records</p>
                                     </div>
 
-                                    <div>
-                                        <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">Core Skills</h4>
-                                        <div className="flex flex-wrap gap-2">
-                                            {selectedCandidate.skills?.length > 0 ? selectedCandidate.skills.map(s => <span key={s} className="tag-pill">{s}</span>) : <span className="text-sm italic text-slate-500">No skills listed.</span>}
+                                    {/* AVERAGE TENURE */}
+                                    <div className="glass-card p-5 border-l-4 border-l-amber-500 flex flex-col justify-between bg-white/[0.02]">
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">Average Tenure</p>
+                                            <h4 className="text-4xl font-black text-amber-400">
+                                                {selectedCandidate?.average_tenure || selectedCandidate?.analytics?.average_tenure || "0.0"}
+                                                <span className="text-xl text-slate-500 ml-1">Yrs</span>
+                                            </h4>
+                                        </div>
+                                        <p className="text-[10px] text-slate-500 font-bold uppercase mt-2 tracking-widest">Verified Career Stability</p>
+                                    </div>
+
+                                    {/* TRUST SCORE */}
+                                    <div className="glass-card p-5 border-l-4 border-l-rose-500 flex flex-col justify-between bg-white/[0.02]">
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">Behavioral Trust Score</p>
+                                            <h4 className="text-4xl font-black text-rose-400">
+                                                {selectedCandidate?.behavioral_trust_score || selectedCandidate?.analytics?.behavioral_trust_score || "0.0"}
+                                                <span className="text-xl text-slate-500 ml-1">/ 10</span>
+                                            </h4>
+                                        </div>
+                                        <div className="w-full h-1 bg-white/[0.05] rounded-full mt-3 overflow-hidden">
+                                            <div
+                                                className="h-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]"
+                                                style={{ width: `${((selectedCandidate?.behavioral_trust_score || selectedCandidate?.analytics?.behavioral_trust_score || 0) / 10) * 100}%` }}
+                                            />
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* ACADEMIC FINGERPRINT BADGES */}
+                                <div className="mb-0">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-xl font-black flex items-center uppercase tracking-widest">
+                                            <Sparkles className="w-5 h-5 mr-3 text-indigo-400" />
+                                            AI Academic Fingerprint
+                                        </h3>
+                                        <div className="h-px flex-1 bg-white/[0.06] mx-6"></div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                            <span className="text-[10px] font-black text-slate-500 uppercase">Live Insights</span>
+                                        </div>
+                                    </div>
+                                    <AcademicFingerprint userId={selectedCandidate.employee_id || selectedCandidate.id} />
+                                </div>
+
                                 <div className="mt-8 pt-6 border-t border-white/[0.06] flex justify-between items-center">
                                     {selectedCandidate.name === "Anonymous Candidate" ? (
                                         <button onClick={() => handleRequestReveal(selectedCandidate)} className="btn-premium px-6 py-2 rounded-xl text-sm flex items-center bg-transparent border-2 border-emerald-500 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]" style={{ background: 'transparent' }}><Eye className="w-4 h-4 mr-2" /> Request Reveal</button>
@@ -744,9 +1693,9 @@ export default function EmployerDashboard({ user, setUser }) {
                         <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: "spring", stiffness: 300, damping: 30 }} className="fixed top-0 right-0 h-full w-96 bg-slate-900/95 border-l border-indigo-500/30 shadow-2xl z-[70] flex flex-col backdrop-blur-xl">
                             <div className="p-5 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
                                 <div className="flex items-center">
-                                    <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center mr-3 border border-indigo-500/30 text-indigo-400 font-bold">{selectedCandidate.name.charAt(0)}</div>
+                                    <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center mr-3 border border-indigo-500/30 text-indigo-400 font-bold">{selectedCandidate?.name?.charAt(0) || '?'}</div>
                                     <div>
-                                        <h3 className="font-bold">{selectedCandidate.name}</h3>
+                                        <h3 className="font-bold">{selectedCandidate?.name || 'Loading...'}</h3>
                                         <p className="text-[10px] text-emerald-400 flex items-center"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-pulse"></div> Line Secure</p>
                                     </div>
                                 </div>
@@ -782,66 +1731,80 @@ export default function EmployerDashboard({ user, setUser }) {
                     )}
                 </AnimatePresence>
 
-                {/* EDIT PROFILE MODAL */}
+                {/* COMPANY SETTINGS MODAL */}
                 <AnimatePresence>
                     {showEditProfileModal && (
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full max-w-lg p-8 rounded-3xl glass-card shadow-2xl overflow-y-auto max-h-[90vh] !bg-slate-900/95">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-2xl font-black flex items-center bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent"><Settings className="w-6 h-6 mr-3 text-amber-400" /> Edit HR Profile</h2>
-                                    <button onClick={() => { setShowEditProfileModal(false); setIsEditingPersonal(false); }} className="p-2 bg-white/[0.06] rounded-full hover:bg-rose-500/20 hover:text-rose-400 transition-colors"><X className="w-5 h-5" /></button>
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+                            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="w-full max-w-2xl p-10 rounded-[2.5rem] glass-card shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-y-auto max-h-[90vh] !bg-slate-900/90 border border-white/[0.1]">
+                                <div className="flex justify-between items-start mb-10">
+                                    <div>
+                                        <h2 className="text-3xl font-black flex items-center bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent"><Settings className="w-8 h-8 mr-4 text-amber-400" /> Company Settings</h2>
+                                        <p className="text-slate-500 text-sm mt-2 font-medium">Update your organization's verified profile across CETS.</p>
+                                    </div>
+                                    <button onClick={() => setShowEditProfileModal(false)} className="p-3 bg-white/[0.06] rounded-2xl hover:bg-rose-500/20 hover:text-rose-400 transition-all border border-white/[0.08]"><X className="w-6 h-6" /></button>
                                 </div>
 
-                                <div className="space-y-5">
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Representative Name</label>
-                                        <input type="text" value={user?.name || ''} disabled className="glass-input w-full opacity-60 cursor-not-allowed font-medium" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Email Contact</label>
-                                        <input type="email" value={user?.id || ''} disabled className="glass-input w-full opacity-60 cursor-not-allowed font-medium text-indigo-400" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Gender (Optional)</label>
-                                        <div className="flex p-1 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-                                            {['Male', 'Female', 'Transgender'].map(g => (
-                                                <button type="button" key={g} onClick={() => setPersonalInfo({ ...personalInfo, gender: g })} className={`flex-1 py-2 text-[10px] md:text-sm rounded-lg font-bold transition-all ${personalInfo.gender === g ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:bg-white/[0.06]'}`}>
-                                                    {g}
-                                                </button>
-                                            ))}
+                                <div className="space-y-8">
+                                    {/* Company Name */}
+                                    <div className="space-y-3">
+                                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1 flex justify-between items-center">
+                                            Organization Name
+                                            <span className="bg-amber-500/10 text-amber-400 px-3 py-1 rounded-full text-[10px] border border-amber-500/20">
+                                                {user?.name_edits_remaining !== undefined ? `${user.name_edits_remaining} out of 5 edits left` : '5 out of 5 left'}
+                                            </span>
+                                        </label>
+                                        <div className="relative">
+                                            <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-amber-400" />
+                                            <input type="text" placeholder="e.g. Acme Corp" value={editForm.company_name} onChange={(e) => setEditForm({ ...editForm, company_name: e.target.value })} className="glass-input w-full pl-14 !py-5 text-lg font-bold shadow-inner" />
                                         </div>
                                     </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Date of Birth</label>
-                                        <input type="date" value={personalInfo.dob} onChange={(e) => setPersonalInfo({ ...personalInfo, dob: e.target.value })} className="glass-input w-full [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Mobile Number</label>
-                                        <div className="flex gap-2">
-                                            <select value={personalInfo.countryCode} onChange={(e) => setPersonalInfo({ ...personalInfo, countryCode: e.target.value })} className="glass-input w-28 appearance-none text-center">
-                                                {['+91', '+1', '+44', '+61', '+81', '+86', '+49', '+33', '+971'].map(code => <option key={code} value={code}>{code}</option>)}
-                                            </select>
-                                            <div className="relative flex-1">
-                                                <Phone className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
-                                                <input
-                                                    type="text"
-                                                    placeholder="10-digit mobile number"
-                                                    maxLength={10}
-                                                    value={personalInfo.mobile}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value.replace(/[^0-9]/g, '');
-                                                        setPersonalInfo({ ...personalInfo, mobile: val });
-                                                    }}
-                                                    className="glass-input w-full pl-10"
-                                                />
+
+                                    {/* Email & Year Row */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-3">
+                                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Email Contact</label>
+                                            <input type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} className="glass-input w-full !py-4 text-base font-bold text-amber-400 shadow-inner" />
+                                        </div>
+                                        <div className="space-y-3">
+                                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1 flex justify-between items-center">
+                                                Est. Year
+                                                <span className="text-amber-400 text-[10px]">
+                                                    {user?.dob_edits_remaining !== undefined ? `${user.dob_edits_remaining} out of 3 Left` : '3 out of 3 Left'}
+                                                </span>
+                                            </label>
+                                            <div className="relative">
+                                                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-amber-400" />
+                                                <select value={editForm.establishment_year} onChange={(e) => setEditForm({ ...editForm, establishment_year: e.target.value })} className="glass-input w-full pl-14 !py-4 text-base font-bold shadow-inner appearance-none cursor-pointer">
+                                                    <option value="">Select Year</option>
+                                                    {Array.from({ length: 126 }, (_, i) => 2025 - i).map(year => (
+                                                        <option key={year} value={year}>{year}</option>
+                                                    ))}
+                                                </select>
+                                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* UID Row */}
+                                    <div className="space-y-3">
+                                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Organization Unique ID</label>
+                                        <input type="text" value={user?.id || ''} disabled className="glass-input w-full opacity-40 cursor-not-allowed !py-4 text-base font-mono font-bold text-emerald-400 bg-black/20" />
+                                    </div>
+
+                                    {/* Phone Row */}
+                                    <div className="space-y-3">
+                                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Official Mobile</label>
+                                        <PhoneInput
+                                            ref={phoneInputRef}
+                                            value={editForm.phone}
+                                            onChange={(number) => setEditForm(prev => ({ ...prev, phone: number }))}
+                                        />
+                                    </div>
                                 </div>
 
-                                <div className="flex justify-end space-x-3 mt-8 pt-6 border-t border-white/[0.06]">
-                                    <button onClick={() => { setShowEditProfileModal(false); setIsEditingPersonal(false); }} className="px-5 py-2.5 text-sm text-slate-500 hover:text-slate-300 transition-colors rounded-xl">Cancel</button>
-                                    <button onClick={() => { handleSavePersonalInfo(); setShowEditProfileModal(false); }} className="btn-premium px-6 py-2.5 rounded-xl text-sm flex items-center" style={{ background: 'linear-gradient(135deg, #f59e0b, #ea580c)' }}><Save className="w-4 h-4 mr-2" /> Save Changes</button>
+                                <div className="flex justify-end space-x-4 mt-12 pt-8 border-t border-white/[0.1]">
+                                    <button onClick={() => setShowEditProfileModal(false)} className="px-8 py-4 text-sm font-black text-slate-500 hover:text-slate-200 transition-colors">Discard</button>
+                                    <button onClick={handleUpdateProfileV2} className="btn-premium px-10 py-4 rounded-2xl text-sm font-black flex items-center shadow-[0_10px_25px_rgba(245,158,11,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all" style={{ background: 'linear-gradient(135deg, #f59e0b, #ea580c)' }}><Save className="w-5 h-5 mr-3" /> Save Changes</button>
                                 </div>
                             </motion.div>
                         </div>
@@ -849,6 +1812,10 @@ export default function EmployerDashboard({ user, setUser }) {
                 </AnimatePresence>
 
             </div>
+
+            {/* STEALTH SURVEY MODAL (Triggered automatically on relieve) */}
+            <StealthSurveyModal isOpen={showStealthModal} target={stealthTarget} onClose={() => setShowStealthModal(false)} user={user} />
+
         </div>
     );
 }
