@@ -11,7 +11,7 @@
 ![AOS](https://img.shields.io/badge/AOS-Animation-303030?style=flat&logo=css3&logoColor=white)
 ![SweetAlert2](https://img.shields.io/badge/SweetAlert2-Popups-ab149e?style=flat&logo=javascript&logoColor=white)
 
-
+---
 
 ## Project Overview
 CETS (Career Ecosystem Tracking System) is a high-performance HR management ecosystem...
