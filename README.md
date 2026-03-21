@@ -1,5 +1,6 @@
 # CETS - Blockchain-Verified Career Tracking & AI-Secured HR Ecosystem
 
+### Built With
 ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/iArnabMaity/CETS?utm_source=oss&utm_medium=github&utm_campaign=iArnabMaity%2FCETS&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 ![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
 ![Vite](https://img.shields.io/badge/Vite-B73BFE?style=flat&logo=vite&logoColor=FFD62E)
@@ -10,12 +11,7 @@
 ![AOS](https://img.shields.io/badge/AOS-Animation-303030?style=flat&logo=css3&logoColor=white)
 ![SweetAlert2](https://img.shields.io/badge/SweetAlert2-Popups-ab149e?style=flat&logo=javascript&logoColor=white)
 
-### Built With
-**Core Architecture** ![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB) ![Vite](https://img.shields.io/badge/Vite-B73BFE?style=flat&logo=vite&logoColor=FFD62E) ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi&logoColor=white) ![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white) ![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=flat&logo=mongodb&logoColor=white)
 
-**UI & Styling** ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat&logo=tailwindcss&logoColor=white) ![AOS](https://img.shields.io/badge/AOS-Animation-303030?style=flat&logo=css3&logoColor=white) ![SweetAlert2](https://img.shields.io/badge/SweetAlert2-Popups-ab149e?style=flat&logo=javascript&logoColor=white)
-
----
 
 ## Project Overview
 CETS (Career Ecosystem Tracking System) is a high-performance HR management ecosystem...
