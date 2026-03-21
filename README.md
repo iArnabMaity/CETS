@@ -1,15 +1,5 @@
 # CETS - Blockchain-Verified Career Tracking & AI-Secured HR Ecosystem
 
-### Built With
-![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/iArnabMaity/CETS?utm_source=oss&utm_medium=github&utm_campaign=iArnabMaity%2FCETS&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
-![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
-![Vite](https://img.shields.io/badge/Vite-B73BFE?style=flat&logo=vite&logoColor=FFD62E)
-![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi&logoColor=white)
-![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=flat&logo=mongodb&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat&logo=tailwindcss&logoColor=white)
-
----
 
 ## Project Overview
 CETS (Career Empowerment & Tracking System) is a high-performance HR management ecosystem natively designed to bridge the trust gap in the modern era. It combines **Conceptual Blockchain-Verified credentials**, **Generative AI strictly built for candidate evaluation**, and a robust **Cognitive AI Firewall** to curate a secure, tamper-proof, and premium recruitment infrastructure.
@@ -19,7 +9,7 @@ CETS (Career Empowerment & Tracking System) is a high-performance HR management 
 ## 🚀 Core Architectural Features
 
 - **Strict Identity Silos**: 
-  - Entirely segmented authentication walls explicitly blocking cross-contamination between `Professional`, `Organization`, and `System Admin` portals at both the client and server levels.
+  - Entirely segmented authentication walls explicitly blocking cross-contamination between `Professional`, `Organisation`, and `System Admin` portals at both the client and server levels.
 - **Double-Layer Verification**: 
   - **Immutable Ledger Emulation**: All professional history (onboarding, relieving) is cryptographically hashed (SHA-256) and appended to a verifiable, read-only ledger.
   - **AI Cognitive Profiling (GROQ)**: Embedded Generative AI triggers adaptive, context-aware skill verification quizzes.
