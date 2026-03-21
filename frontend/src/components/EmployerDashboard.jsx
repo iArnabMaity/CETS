@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Building2, LogOut, Users, Briefcase, FileSignature, PieChart, Lock, ShieldCheck, Bell, Plus, X, Eye, CheckCircle, XCircle, Calendar, MapPin, IndianRupee, KeyRound, Minus, User, Phone, Check, Save, Moon, Sun, Settings, ChevronDown, MessageSquare, Send, Smartphone, Tablet, Laptop, Monitor, GraduationCap, Sparkles, Activity, Search, SortAsc, SortDesc, Filter, ArrowUpDown } from 'lucide-react';
+import { Building2, LogOut, Users, Briefcase, FileSignature, PieChart, Lock, ShieldCheck, Bell, Plus, X, Eye, CheckCircle, CheckCircle2, AlertTriangle, ShieldAlert, XCircle, Calendar, MapPin, IndianRupee, KeyRound, Minus, User, Phone, Check, Save, Moon, Sun, Settings, ChevronDown, MessageSquare, Send, Smartphone, Tablet, Laptop, Monitor, GraduationCap, Sparkles, Activity, Search, SortAsc, SortDesc, Filter, ArrowUpDown, Menu, Hexagon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import StealthSurveyModal from './StealthSurveyModal';
 import AcademicFingerprint from './AcademicFingerprint';
@@ -166,6 +166,9 @@ export default function EmployerDashboard({ user, setUser }) {
     const [showStealthModal, setShowStealthModal] = useState(false);
     const [stealthTarget, setStealthTarget] = useState(null);
 
+    // Mobile Navigation State
+    const [showMobileMenu, setShowMobileMenu] = useState(false);
+
     // Job Posting State
     const [newJob, setNewJob] = useState({
         job_title: '', vacancy: 1, location: 'Onsite',
@@ -175,6 +178,7 @@ export default function EmployerDashboard({ user, setUser }) {
 
     // Password State
     const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+    const [passwordStatus, setPasswordStatus] = useState({ type: '', msg: '' });
 
     const handleLogout = async () => {
         const result = await Swal.fire({
@@ -859,6 +863,68 @@ export default function EmployerDashboard({ user, setUser }) {
         return score;
     })(passwordForm.newPassword);
     const passwordsMatch = passwordForm.newPassword && passwordForm.newPassword === passwordForm.confirmPassword;
+
+    const handlePasswordChange = async (e) => {
+        e.preventDefault();
+        if (passwordForm.oldPassword === passwordForm.newPassword) {
+            setPasswordStatus({ msg: "New password cannot be the same as current.", type: "error" });
+            return;
+        }
+        if (pwdStrength < 100) {
+            setPasswordStatus({ msg: "Please meet all complexity requirements.", type: "error" });
+            return;
+        }
+        if (!passwordsMatch) {
+            setPasswordStatus({ msg: "Passwords do not match.", type: "error" });
+            return;
+        }
+
+        const result = await Swal.fire({
+            title: 'Update Security Passkey?',
+            text: 'This will permanently change your credentials for the professional portal.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#f43f5e',
+            cancelButtonColor: 'rgba(255,255,255,0.05)',
+            confirmButtonText: 'Confirm Update',
+            cancelButtonText: 'Abort',
+            background: '#060a14',
+            color: '#fff',
+            customClass: {
+                popup: 'glass-card border border-rose-500/20 rounded-3xl',
+                title: 'text-white font-black tracking-tight',
+                htmlContainer: 'text-slate-400 text-sm'
+            }
+        });
+
+        if (!result.isConfirmed) return;
+
+        try {
+            await axios.post(`${API_BASE}/api/auth/change_password/${user.id}`, {
+                old_password: passwordForm.oldPassword, new_password: passwordForm.newPassword, confirm_password: passwordForm.confirmPassword
+            }, authHeader);
+            Swal.fire({
+                icon: 'success',
+                title: 'Passkey Updated',
+                text: 'Your credentials have been securely updated.',
+                background: '#060a14',
+                color: '#fff',
+                confirmButtonColor: '#f43f5e'
+            });
+            setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+            setPasswordStatus({ msg: '', type: '' });
+        } catch (err) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Security Sync Failed',
+                text: err.response?.data?.detail || "Update failed due to protocol error.",
+                background: '#060a14',
+                color: '#fff',
+                confirmButtonColor: '#f43f5e'
+            });
+        }
+    };
+
     // --- Helper to calculate age from DOB ---
     const calculateAge = (dob) => {
         if (!dob || dob === "N/A" || dob === "Hidden by Incognito") return "N/A";
@@ -883,14 +949,35 @@ export default function EmployerDashboard({ user, setUser }) {
                 <div className="orb orb-cyan w-64 h-64 bottom-0 left-1/4 opacity-10" />
             </div>
 
+            {/* MOBILE SIDEBAR OVERLAY */}
+            <AnimatePresence>
+                {showMobileMenu && (
+                    <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        exit={{ opacity: 0 }} 
+                        onClick={() => setShowMobileMenu(false)}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] md:hidden" 
+                    />
+                )}
+            </AnimatePresence>
+
             {/* SIDEBAR */}
-            <div className="w-72 flex flex-col glass-sidebar z-10 relative">
+            <div className={`
+                fixed md:relative inset-y-0 left-0 w-72 flex flex-col glass-sidebar z-[70] transition-transform duration-300 transform
+                ${showMobileMenu ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+            `}>
                 <div className="p-8">
-                    <div className="flex items-center space-x-3 mb-10">
-                        <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-lg font-black text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]">
-                            <Building2 className="w-6 h-6 text-white" />
+                    <div className="flex items-center justify-between mb-10">
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-lg font-black text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]">
+                                <Hexagon className="w-6 h-6 text-white" />
+                            </div>
+                            <span className="text-xl font-black tracking-tighter text-white">CETS HR</span>
                         </div>
-                        <span className="text-xl font-black tracking-tighter text-white">CETS HR</span>
+                        <button onClick={() => setShowMobileMenu(false)} className="p-2 bg-white/[0.06] rounded-xl md:hidden text-slate-400">
+                            <X className="w-5 h-5" />
+                        </button>
                     </div>
 
                     <p className="text-[10px] font-bold text-slate-500 tracking-[0.2em] uppercase mb-4">Command Center</p>
@@ -908,6 +995,7 @@ export default function EmployerDashboard({ user, setUser }) {
                                 onClick={() => {
                                     setActiveTab(item.id);
                                     if (item.id === 'notifications') markNotificationsRead();
+                                    setShowMobileMenu(false);
                                 }}
                                 className={`w-full flex items-center justify-between p-3 rounded-xl font-medium transition-all duration-200 ${activeTab === item.id ? 'sidebar-tab-active' : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-300'}`}
                             >
@@ -927,14 +1015,18 @@ export default function EmployerDashboard({ user, setUser }) {
 
             {/* MAIN WORKSPACE */}
             <div className="flex-1 flex flex-col h-screen overflow-y-auto relative z-10">
-                <header className="h-28 px-10 flex items-center justify-between glass-header sticky top-0 z-50">
-                    <div className="flex flex-col">
-                        <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
-                            <Building2 className="w-5 h-5 text-indigo-400" />
-                            Welcome back, <span className="text-indigo-400">{user?.company_name || 'Partner'}</span>
-                        </h1>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Employer Command Center • Workforce Ledger</p>
-                        <div className="flex items-center gap-3 mt-1.5">
+                <header className="h-28 px-4 md:px-10 flex items-center justify-between glass-header sticky top-0 z-50 transition-all">
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setShowMobileMenu(true)} className="p-3 bg-white/[0.06] rounded-2xl md:hidden text-indigo-400 hover:bg-indigo-500/10 transition-all border border-white/[0.08]">
+                            <Menu className="w-6 h-6" />
+                        </button>
+                        <div className="flex flex-col">
+                            <h1 className="text-lg md:text-xl font-black tracking-tight text-white flex items-center gap-2">
+                                <Building2 className="hidden sm:inline w-5 h-5 text-indigo-400" />
+                                Welcome back, <span className="text-indigo-400 truncate max-w-[120px] sm:max-w-none">{user?.company_name || 'Partner'}</span>
+                            </h1>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 hidden sm:block">Employer Command Center • Workforce Ledger</p>
+                            <div className="flex items-center gap-2 md:gap-3 mt-1.5 overflow-x-auto no-scrollbar">
                             <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]">
                                 <ShieldCheck className="w-2.5 h-2.5 text-emerald-400" />
                                 <span className="text-[8px] font-black uppercase tracking-tighter text-emerald-400/80">Secured by Blockchain</span>
@@ -945,6 +1037,7 @@ export default function EmployerDashboard({ user, setUser }) {
                             </div>
                         </div>
                     </div>
+                </div>
 
                     <div className="flex items-center space-x-6">
                         {/* NOTIFICATION BELL */}
@@ -1376,24 +1469,104 @@ export default function EmployerDashboard({ user, setUser }) {
                         )}
                         {/* TAB 4: CANDIDATE CRM */}
                         {activeTab === 'applications' && (
-                            <motion.div key="applications" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-4xl space-y-6">
+                            <motion.div key="applications" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-6xl space-y-6">
                                 <div className="glass-card p-8">
-                                    <h2 className="text-2xl font-bold flex items-center mb-6"><Users className="mr-3 text-indigo-400" /> Candidate Applications</h2>
-                                    <div className="space-y-4">
-                                        {pendingRequests.applications.length === 0 ? <p className="text-slate-500 text-center py-8 italic border border-dashed border-white/[0.08] rounded-2xl">No incoming applications yet.</p> : pendingRequests.applications.map((app, i) => (
-                                            <div key={i} className="p-6 rounded-2xl bg-white/5 border border-white/10 flex justify-between items-center hover:border-indigo-500/50 hover:bg-white/[0.08] transition-all cursor-pointer shadow-sm" onClick={() => viewCandidateDetails(app.employee_id)}>
-                                                <div><p className="font-bold text-lg">{app.employee_name}</p><p className="text-sm font-medium text-indigo-400">Applied for: {app.job_title}</p></div>
-                                                <button className="flex items-center px-5 py-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl text-sm font-bold border border-indigo-500/20 hover:bg-indigo-500 hover:text-white transition-all"><Eye className="w-4 h-4 mr-2" /> Review Profile</button>
+                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                                        <div>
+                                            <h2 className="text-3xl font-black flex items-center tracking-tight text-white">
+                                                <Users className="mr-4 w-8 h-8 text-indigo-400" /> Candidate CRM
+                                            </h2>
+                                            <p className="text-slate-500 font-medium mt-1">Automatically sorted by Behavioral Trust Index and verified performance.</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="px-4 py-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center shadow-lg shadow-emerald-500/10">
+                                                <Activity className="w-3.5 h-3.5 mr-2" /> AI-Powered Sorting Active
                                             </div>
-                                        ))}
+                                        </div>
                                     </div>
 
-                                    <Pagination
-                                        currentPage={pendingRequests.applications_page}
-                                        totalItems={pendingRequests.total_applications}
-                                        itemsPerPage={30}
-                                        onPageChange={(page) => setPendingRequests(p => ({ ...p, applications_page: page }))}
-                                    />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {pendingRequests.applications.length === 0 ? (
+                                            <div className="col-span-full text-center py-16 border border-dashed rounded-3xl border-white/[0.08] bg-white/[0.01]">
+                                                <Users className="w-12 h-12 text-slate-700 mx-auto mb-4 opacity-20" />
+                                                <p className="text-slate-500 text-lg font-medium italic">No incoming applications yet.</p>
+                                            </div>
+                                        ) : (
+                                            [...pendingRequests.applications]
+                                                .sort((a, b) => (b.behavioral_trust_score || 0) - (a.behavioral_trust_score || 0))
+                                                .map((app, i) => (
+                                                    <motion.div
+                                                        key={i}
+                                                        initial={{ opacity: 0, scale: 0.95 }}
+                                                        animate={{ opacity: 1, scale: 1 }}
+                                                        transition={{ delay: i * 0.05 }}
+                                                        className="glass-card p-6 flex flex-col justify-between hover:border-indigo-500/50 hover:bg-white/[0.08] transition-all cursor-pointer group relative overflow-hidden h-full"
+                                                        onClick={() => viewCandidateDetails(app.employee_id)}
+                                                    >
+                                                        {/* Top Corner Badge for Trust Score */}
+                                                        <div className="absolute top-0 right-0 px-4 py-2 bg-indigo-500/10 border-b border-l border-white/5 rounded-bl-2xl">
+                                                            <div className="flex flex-col items-end">
+                                                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Trust Score</span>
+                                                                <span className="text-lg font-black text-indigo-400">{(app.behavioral_trust_score || 0).toFixed(1)}</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-4">
+                                                            <div className="flex items-start gap-4">
+                                                                <div className="w-14 h-14 bg-gradient-to-br from-indigo-500/20 to-purple-500/10 rounded-2xl flex items-center justify-center border border-white/10 group-hover:border-indigo-500/40 transition-colors">
+                                                                    <User className="text-indigo-400 w-7 h-7" />
+                                                                </div>
+                                                                <div className="pr-12">
+                                                                    <h3 className="font-black text-xl text-white truncate group-hover:text-indigo-300 transition-colors">{app.employee_name}</h3>
+                                                                    <p className="text-xs font-bold text-slate-500 flex items-center mt-0.5">
+                                                                        <Briefcase className="w-3 h-3 mr-1 text-indigo-500" /> {app.job_title}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="space-y-3 pt-2">
+                                                                <div className="space-y-1">
+                                                                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">About Me</p>
+                                                                    <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed font-medium italic">
+                                                                        {app.candidate_about || "Professional profile summary not provided."}
+                                                                    </p>
+                                                                </div>
+
+                                                                <div className="flex items-center gap-3 pt-2">
+                                                                    <div className="flex-1 p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05] flex flex-col items-center">
+                                                                        <span className="text-[8px] font-black text-slate-500 uppercase">Verified Ledger</span>
+                                                                        <span className="text-sm font-black text-emerald-400 flex items-center">
+                                                                            <ShieldCheck className="w-3 h-3 mr-1" /> {app.verified_jobs_count || 0}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex-1 p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05] flex flex-col items-center">
+                                                                        <span className="text-[8px] font-black text-slate-500 uppercase">Experience</span>
+                                                                        <span className="text-sm font-black text-amber-400">
+                                                                            {app.experience_years || 0} Yrs
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="mt-6">
+                                                            <button className="w-full flex items-center justify-center px-5 py-3 bg-indigo-500/10 text-indigo-400 rounded-2xl text-xs font-black tracking-widest uppercase border border-indigo-500/20 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-transparent transition-all shadow-lg group-hover:shadow-indigo-500/30">
+                                                                <Eye className="w-4 h-4 mr-2" /> Review Full Profile
+                                                            </button>
+                                                        </div>
+                                                    </motion.div>
+                                                ))
+                                        )}
+                                    </div>
+
+                                    <div className="mt-8 border-t border-white/5 pt-6">
+                                        <Pagination
+                                            currentPage={pendingRequests.applications_page}
+                                            totalItems={pendingRequests.total_applications}
+                                            itemsPerPage={30}
+                                            onPageChange={(page) => setPendingRequests(p => ({ ...p, applications_page: page }))}
+                                        />
+                                    </div>
                                 </div>
                             </motion.div>
                         )}
@@ -1440,78 +1613,7 @@ export default function EmployerDashboard({ user, setUser }) {
                             </motion.div>
                         )}
 
-                        {/* TAB 6: SECURITY CENTER */}
-                        {activeTab === 'security' && (
-                            <motion.div key="security" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-xl">
-                                <div className="glass-card p-8">
-                                    <h2 className="text-2xl font-bold flex items-center mb-6"><Lock className="mr-3 text-indigo-400" /> Master Security Key</h2>
-                                    <form onSubmit={async (e) => {
-                                        e.preventDefault();
-                                        if (passwordForm.oldPassword === passwordForm.newPassword) {
-                                            Swal.fire({ icon: 'warning', title: 'Invalid Policy', text: "You cannot change your password to your current password." });
-                                            return;
-                                        }
-                                        if (pwdStrength < 100) {
-                                            Swal.fire({ icon: 'warning', title: 'Weak Passkey', text: "Please meet all password complexity requirements." });
-                                            return;
-                                        }
-                                        if (!passwordsMatch) {
-                                            Swal.fire({ icon: 'error', title: 'Mismatch', text: "Passwords do not match." });
-                                            return;
-                                        }
-
-                                        const result = await Swal.fire({
-                                            title: 'Update Passkey?',
-                                            text: 'This will permanently change your organization\'s master security key.',
-                                            icon: 'warning',
-                                            showCancelButton: true,
-                                            confirmButtonColor: '#6366f1',
-                                            cancelButtonColor: '#ef4444',
-                                            confirmButtonText: 'Yes, update now!'
-                                        });
-
-                                        if (!result.isConfirmed) return;
-
-                                        try {
-                                            await axios.post(`${API_BASE}/api/auth/change_password/${user.id}`, {
-                                                old_password: passwordForm.oldPassword,
-                                                new_password: passwordForm.newPassword,
-                                                confirm_password: passwordForm.confirmPassword
-                                            }, authHeader);
-                                            Swal.fire({ icon: 'success', title: 'Security Updated', text: "Password updated securely!" });
-                                            setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
-                                        } catch (err) {
-                                            Swal.fire({ icon: 'error', title: 'Update Failed', text: err.response?.data?.detail || "Failed to update password." });
-                                        }
-                                    }} className="space-y-4">
-                                        <div><label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Current Password</label><input type="password" required value={passwordForm.oldPassword} onChange={e => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })} className="glass-input w-full mt-1" /></div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block ml-1">New Policy Passkey</label>
-                                            <input type="password" required value={passwordForm.newPassword} onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} className={`glass-input w-full !p-4 !font-mono text-indigo-400 ${pwdStrength === 100 ? 'focus:border-emerald-500/50' : 'focus:border-indigo-500/50'}`} />
-                                            <div className="h-1.5 w-full bg-white/[0.04] rounded-full mt-2 overflow-hidden border border-white/[0.06]">
-                                                <motion.div initial={{ width: 0 }} animate={{ width: `${pwdStrength}%` }} className={`h-full ${pwdStrength <= 25 ? 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.4)]' : pwdStrength <= 50 ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.4)]' : pwdStrength <= 75 ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]'}`} />
-                                            </div>
-                                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest flex justify-between mt-1 px-1">
-                                                <span>Security Score: {pwdStrength}%</span>
-                                                <span className="opacity-70">Requires: 8+ Chars, U/L Case, Num/Spec</span>
-                                            </p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex justify-between items-center ml-1">
-                                                Confirm New Passkey
-                                                {passwordForm.confirmPassword.length > 0 && (
-                                                    <span className={`text-[8px] font-black uppercase tracking-widest ${passwordsMatch ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                        {passwordsMatch ? 'Match Confirmed ✓' : 'Mismatch detected ⚠'}
-                                                    </span>
-                                                )}
-                                            </label>
-                                            <input type="password" required value={passwordForm.confirmPassword} onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} className={`glass-input w-full !p-4 !font-mono text-indigo-400 ${passwordsMatch ? 'focus:border-emerald-500/50' : 'focus:border-indigo-500/50'}`} />
-                                        </div>
-                                        <button disabled={pwdStrength < 100 || !passwordsMatch} type="submit" className="btn-premium w-full mt-4 py-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed">Update Protocol</button>
-                                    </form>
-                                </div>
-                            </motion.div>
-                        )}
+                        {/* THE NEW PREMIUM SECURITY TAB IS INJECTED AT THE END OF THE ANIMATEPRESENCE BLOCK */}
 
                         {/* TAB 7: NOTIFICATIONS */}
                         {activeTab === 'notifications' && (
@@ -1684,6 +1786,108 @@ export default function EmployerDashboard({ user, setUser }) {
                                 </div>
                             </motion.div>
                         </div>
+                    )}
+
+                    {/* TAB: SECURITY */}
+                    {activeTab === 'security' && (
+                        <motion.div key="security" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-2xl space-y-6">
+                            <div className="glass-card p-6 md:p-10 relative overflow-hidden mt-6 mb-8">
+                                <div className="absolute top-0 right-0 p-8 opacity-5">
+                                    <ShieldAlert className="w-24 h-24 text-rose-500" />
+                                </div>
+                                <div className="relative z-10">
+                                    <h2 className="text-xl md:text-2xl font-bold mb-2 flex items-center">
+                                        <Lock className="mr-3 text-rose-500 w-6 h-6" /> Update Security Passkey
+                                    </h2>
+                                    <p className="text-slate-400 text-xs md:text-sm mb-8">Change your account credentials. Follow enterprise security standards for maximum protection.</p>
+
+                                    {passwordStatus.msg && (
+                                        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className={`p-4 rounded-xl mb-6 flex items-center border ${passwordStatus.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                                            {passwordStatus.type === 'success' ? <CheckCircle2 className="w-5 h-5 mr-3 flex-shrink-0" /> : <AlertTriangle className="w-5 h-5 mr-3 flex-shrink-0" />}
+                                            <span className="text-xs md:text-sm font-bold">{passwordStatus.msg}</span>
+                                        </motion.div>
+                                    )}
+
+                                    <form onSubmit={handlePasswordChange} className="space-y-6">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Current Security Passkey</label>
+                                            <div className="relative group">
+                                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-rose-500 transition-colors" />
+                                                <input 
+                                                    required 
+                                                    type="password" 
+                                                    placeholder="Enter current master key..."
+                                                    value={passwordForm.oldPassword} 
+                                                    onChange={e => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })} 
+                                                    className="glass-input w-full !pl-12 !py-4 font-mono text-rose-400 placeholder:text-slate-700" 
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">New Security Key</label>
+                                            <div className="relative group">
+                                                <ShieldAlert className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-rose-500 transition-colors" />
+                                                <input 
+                                                    required 
+                                                    type="password" 
+                                                    placeholder="Define new security sequence..."
+                                                    value={passwordForm.newPassword} 
+                                                    onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} 
+                                                    className={`glass-input w-full !pl-12 !py-4 font-mono text-rose-400 placeholder:text-slate-700 ${pwdStrength === 100 ? 'focus:border-emerald-500/50' : 'focus:border-rose-500/50'}`} 
+                                                />
+                                            </div>
+                                            
+                                            {/* Security Checklist */}
+                                            <div className="grid grid-cols-2 gap-2 mt-4">
+                                                {[
+                                                    { label: '8+ Characters', met: passwordForm.newPassword.length >= 8 },
+                                                    { label: 'Uppercase Unit', met: /[A-Z]/.test(passwordForm.newPassword) },
+                                                    { label: 'Lowercase Unit', met: /[a-z]/.test(passwordForm.newPassword) },
+                                                    { label: 'Numeric/Symbol', met: /[0-9!@#$%^&*]/.test(passwordForm.newPassword) }
+                                                ].map((req, i) => (
+                                                    <div key={i} className={`flex items-center space-x-2 text-[10px] uppercase tracking-wider font-bold ${req.met ? 'text-emerald-400' : 'text-slate-600'}`}>
+                                                        {req.met ? <CheckCircle2 className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border border-slate-700"></div>}
+                                                        <span>{req.label}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2 pt-2 border-t border-white/[0.04]">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Confirm Validation Sequence</label>
+                                                {passwordForm.confirmPassword && (
+                                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${passwordsMatch ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                        {passwordsMatch ? 'Match Confirmed' : 'Mismatch Detected'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="relative group">
+                                                <ShieldCheck className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${passwordForm.confirmPassword ? (passwordsMatch ? 'text-emerald-400' : 'text-rose-400') : 'text-slate-600 group-focus-within:text-rose-500'}`} />
+                                                <input 
+                                                    required 
+                                                    type="password" 
+                                                    placeholder="Re-enter sequence..."
+                                                    value={passwordForm.confirmPassword} 
+                                                    onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} 
+                                                    className={`glass-input w-full !pl-12 !py-4 font-mono text-rose-400 placeholder:text-slate-700 ${passwordForm.confirmPassword ? (passwordsMatch ? 'border-emerald-500/30 focus:border-emerald-500/50' : 'border-rose-500/30 focus:border-rose-500/50') : ''}`} 
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <button 
+                                            disabled={pwdStrength < 100 || !passwordsMatch} 
+                                            type="submit" 
+                                            className="w-full flex justify-center items-center py-4 rounded-xl font-black text-sm transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500 hover:text-white group"
+                                        >
+                                            <Lock className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                                            Execute Security Override
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </motion.div>
                     )}
                 </AnimatePresence>
 

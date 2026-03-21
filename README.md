@@ -23,30 +23,46 @@ CETS (Career Empowerment & Tracking System) is a high-performance HR management 
 - **Double-Layer Verification**: 
   - **Immutable Ledger Emulation**: All professional history (onboarding, relieving) is cryptographically hashed (SHA-256) and appended to a verifiable, read-only ledger.
   - **AI Cognitive Profiling (GROQ)**: Embedded Generative AI triggers adaptive, context-aware skill verification quizzes.
-- **Cognitive AI Firewall**: 
-  - An underlying volumetric protection tier employing Scikit-Learn constraints alongside an interactive 3x3 randomized Icon Matrix CAPTCHA, completely locking out automated credential stuffing.
-- **Premium User Experience**: 
-  - Unparalleled high-fidelity glassmorphism built with absolute precision applying Framer Motion, Tsparticles, and Lucide abstractions overlaying a dynamically scaling Tailwind 4 + Vite stack.
-- **Real-Time Organization Sync**: 
-  - Granular dashboards displaying multi-factor workforce analytics (via Recharts and Chart.js v4), live threat logging, and an instantly synchronizable candidate registry.
+- **Cognitive AI Firewall & Premium Security**: 
+  - **Volumetric Protection**: Scikit-Learn constraints paired with a randomized 3x3 Icon CAPTCHA.
+  - **Passkey Hardening**: Integrated premium password change interface with real-time complexity validation (8+ chars, upper/lower, numeric, special) across all dashboard roles.
+- **Employer CRM 2.0**: 
+  - Advanced candidate management with high-fidelity card-based views, AI-driven trust score sorting, and enriched profile insights (Verified Job Ledger & About Me).
+- **Global Responsive UI**: 
+  - Adaptive "Overwatch" themed interface using Framer Motion and Tailwind v4, ensuring a premium experience on mobile, tablet, and desktop without functional degradation.
 
 ---
 
 ## 🏗️ Technical Stack
 
+### Built With
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/iArnabMaity/CETS?utm_source=oss&utm_medium=github&utm_campaign=iArnabMaity%2FCETS&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-B73BFE?style=flat&logo=vite&logoColor=FFD62E)
+![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=flat&logo=mongodb&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat&logo=redis&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat&logo=tailwindcss&logoColor=white)
+![Framer Motion](https://img.shields.io/badge/Framer_Motion-0055FF?style=flat&logo=framer&logoColor=white)
+![JSON Web Tokens](https://img.shields.io/badge/JSON_Web_Tokens-000000?style=flat&logo=jsonwebtokens&logoColor=white)
+![React Router](https://img.shields.io/badge/React_Router-CA4245?style=flat&logo=reactrouter&logoColor=white)
+![Axios](https://img.shields.io/badge/Axios-5A29E4?style=flat&logo=axios&logoColor=white)
+![PostCSS](https://img.shields.io/badge/PostCSS-DD3A0A?style=flat&logo=postcss&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
+
 ### Frontend (React + Vite)
-- **Framework**: React 19 driven by Vite 7 with absolute Hot Module Reloading.
-- **Styling**: TailwindCSS V4 running native PostCSS alongside pure Glassmorphic CSS attributes.
-- **Animations/Visuals**: Framer Motion (layout scale physics), AOS (scroll detection), and TS-Particles.
-- **Form Controls**: SweetAlert2 (Zero-Knowledge alerts) and Intl-Tel-Input.
-- **Routing**: React Router DOM (v7).
+- **Framework**: React 19 + Vite 7 (High-performance HMR).
+- **Styling**: TailwindCSS V4 & Modern Glassmorphism.
+- **Animations**: Framer Motion, AOS (Animate on Scroll), and TS-Particles.
+- **Charts**: Recharts & Chart.js for deep workforce analytics.
+- **UI Components**: Lucide-React & Zero-Knowledge SweetAlert2.
 
 ### Backend (Python + FastAPI)
-- **API Engine**: High-performance asynchronous endpoints managed strictly by FastAPI.
-- **Database & ODM**: MongoDB integrated dynamically via Motor (asynchronous bridging) and PyMongo.
-- **Caching Ledger**: Redis pipelines guaranteeing zero-latency session continuity.
-- **Machine Learning**: Scikit-Learn, NumPy, and Pandas generating behavioral metrics.
-- **Security**: Complete JWT tokenization mapped to strictly-typed Pydantic schemas encasing bcrypt salted passlib hashes.
+- **API**: Asynchronous FastAPI endpoints with Pydantic v2 validation.
+- **Auth**: Salted Bcrypt hashing and JWT session management.
+- **AI/ML**: GROQ (Generative AI), Scikit-Learn (Cognitive Firewall), and NLTK/Pandas.
+- **Storage**: MongoDB (Persistent Data) & Redis (Real-time Caching).
 
 ---
 
@@ -120,25 +136,25 @@ npm run dev
 
 ---
 
-## 📂 Project Tree map
+## 📂 Project Tree Map
 
 ```text
 ├── backend/
-│   ├── main.py              # Root FastAPI cluster mapping models & active routes
-│   ├── models/              # Pydantic schema validation objects
-│   ├── routes/              # Explicit API routing (Auth, Users, Analytics)
-│   ├── services/            # Microservices (GROQ integration, Redis execution)
-│   ├── sync_database.py     # Structural schema synchronizer
-│   └── requirements.txt     # Locked production dependencies
+│   ├── main.py              # Core API gateway & logic
+│   ├── ml_training/         # Cognitive firewall & behavioral models
+│   ├── sync_database.py     # Database schema synchronizer
+│   ├── requirements.txt     # Python dependencies
+│   └── Dockerfile           # Containerization configuration
 ├── frontend/
 │   ├── src/
-│   │   ├── components/      # Glassmorphism encapsulated interface modules
-│   │   ├── App.jsx          # Secure view renderer enforcing Auth endpoints
-│   │   ├── index.css        # Core stylesheet integrating absolute theme configurations
-│   │   └── main.jsx         # Vite injection target
-│   ├── package.json         # Explicit layout dependencies (AOS, Motion, Charts)
-│   └── vite.config.js       # Vite build layer map
-└── README.md                # System Overview
+│   │   ├── components/      # Role-based Dashboards & common primitives
+│   │   ├── utils/           # Shared helper functions
+│   │   ├── assets/          # Static media & visuals
+│   │   ├── App.jsx          # Session-persistent routing logic
+│   │   └── index.css        # Global responsive theme variables
+│   ├── tailwind.config.js   # Framework-level styling config
+│   └── vite.config.js       # Bundler optimized for performance
+└── README.md                # Technical Documentation
 ```
 
 ---

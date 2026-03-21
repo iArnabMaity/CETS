@@ -3,7 +3,7 @@ import axios from 'axios';
 import html2pdf from 'html2pdf.js';
 import AcademicFingerprint from './AcademicFingerprint';
 import Pagination from './common/Pagination';
-import { Building2, LogOut, Users, Briefcase, FileSignature, PieChart, Lock, ShieldCheck, Bell, Plus, X, Eye, CheckCircle, XCircle, Calendar, MapPin, IndianRupee, KeyRound, Minus, User, Phone, Check, Save, Moon, Sun, Settings, ChevronDown, MessageSquare, Send, Hexagon, Activity, Code, BookOpen, GraduationCap, Info, AlertOctagon, Download, Loader2, Sparkles, EyeOff, Smartphone, Tablet, Laptop, Monitor, Edit2 } from 'lucide-react';
+import { Building2, LogOut, Users, Briefcase, FileSignature, PieChart, Lock, ShieldCheck, Bell, Plus, X, Eye, CheckCircle, CheckCircle2, XCircle, Calendar, MapPin, IndianRupee, KeyRound, Minus, User, Phone, Check, Save, Moon, Sun, Settings, ChevronDown, MessageSquare, Send, Hexagon, Activity, Code, BookOpen, GraduationCap, Info, AlertOctagon, ShieldAlert, Download, Loader2, Sparkles, EyeOff, Smartphone, Tablet, Laptop, Monitor, Edit2, AlertTriangle, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PhoneInput from './PhoneInput';
 import Swal from 'sweetalert2';
@@ -47,6 +47,7 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
   const [noticeboardJobs, setNoticeboardJobs] = useState({ jobs: [], total: 0, page: 1 });
   const [verifiedJobs, setVerifiedJobs] = useState([]);
   const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordStatus, setPasswordStatus] = useState({ type: '', msg: '' });
   const [trustScore, setTrustScore] = useState(0);
 
   // Registered Employers & Notifications
@@ -103,6 +104,14 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
   const [quizData, setQuizData] = useState(null);
   const [quizAnswers, setQuizAnswers] = useState({});
   const [generatingSkill, setGeneratingSkill] = useState(null);
+
+  // Company Details Modal State
+  const [showCompanyModal, setShowCompanyModal] = useState(false);
+  const [companyDetails, setCompanyDetails] = useState(null);
+  const [isCompanyLoading, setIsCompanyLoading] = useState(false);
+
+  // Mobile Navigation State
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Load Data
   useEffect(() => {
@@ -396,6 +405,22 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
     }
   };
 
+  const viewCompanyDetails = async (companyName) => {
+    setIsCompanyLoading(true);
+    setCompanyDetails(null);
+    setShowCompanyModal(true);
+    try {
+      const res = await axios.get(`${API_BASE}/api/hr/company_profile/${companyName}`);
+      setCompanyDetails(res.data);
+    } catch (err) {
+      console.error("Failed to fetch company profile:", err);
+      Swal.fire({ icon: 'error', title: 'Fetch Failed', text: 'Could not retrieve company profile information.' });
+      setShowCompanyModal(false);
+    } finally {
+      setIsCompanyLoading(false);
+    }
+  };
+
   const submitApprovalRequest = async () => {
     setIsSubmittingApproval(true);
     try {
@@ -631,18 +656,35 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
-    if (passwordForm.oldPassword === passwordForm.newPassword) { Swal.fire({ icon: 'warning', title: 'Invalid Policy', text: "You cannot change your password to your current password." }); return; }
-    if (pwdStrength < 100) { Swal.fire({ icon: 'warning', title: 'Weak Passkey', text: "Please meet all password complexity requirements." }); return; }
-    if (!passwordsMatch) { Swal.fire({ icon: 'error', title: 'Mismatch', text: "Passwords do not match." }); return; }
+    if (passwordForm.oldPassword === passwordForm.newPassword) {
+      setPasswordStatus({ msg: "New password cannot be the same as current.", type: "error" });
+      return;
+    }
+    if (pwdStrength < 100) {
+      setPasswordStatus({ msg: "Please meet all complexity requirements.", type: "error" });
+      return;
+    }
+    if (!passwordsMatch) {
+      setPasswordStatus({ msg: "Passwords do not match.", type: "error" });
+      return;
+    }
 
     const result = await Swal.fire({
-      title: 'Update Passkey?',
-      text: 'This will permanently change your professional portal access key.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#6366f1',
-      cancelButtonColor: '#ef4444',
-      confirmButtonText: 'Yes, update now!'
+        title: 'Update Security Passkey?',
+        text: 'This will permanently change your credentials for the professional portal.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#f43f5e',
+        cancelButtonColor: 'rgba(255,255,255,0.05)',
+        confirmButtonText: 'Confirm Update',
+        cancelButtonText: 'Abort',
+        background: '#060a14',
+        color: '#fff',
+        customClass: {
+            popup: 'glass-card border border-rose-500/20 rounded-3xl',
+            title: 'text-white font-black tracking-tight',
+            htmlContainer: 'text-slate-400 text-sm'
+        }
     });
 
     if (!result.isConfirmed) return;
@@ -651,9 +693,26 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
       await axios.post(`${API_BASE}/api/auth/change_password/${user.id}`, {
         old_password: passwordForm.oldPassword, new_password: passwordForm.newPassword, confirm_password: passwordForm.confirmPassword
       }, authHeader);
-      Swal.fire({ icon: 'success', title: 'Security Updated', text: "Password updated securely!" });
+      Swal.fire({
+          icon: 'success',
+          title: 'Passkey Updated',
+          text: 'Your credentials have been securely updated.',
+          background: '#060a14',
+          color: '#fff',
+          confirmButtonColor: '#f43f5e'
+      });
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
-    } catch (err) { Swal.fire({ icon: 'error', title: 'Update Failed', text: err.response?.data?.detail || "Failed to update password." }); }
+      setPasswordStatus({ msg: '', type: '' });
+    } catch (err) {
+      Swal.fire({
+          icon: 'error',
+          title: 'Security Sync Failed',
+          text: err.response?.data?.detail || "Update failed due to protocol error.",
+          background: '#060a14',
+          color: '#fff',
+          confirmButtonColor: '#f43f5e'
+      });
+    }
   };
 
   // --- Real-Time Chat Logic (Enterprise P2P) ---
@@ -834,14 +893,35 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
         <div className="orb orb-cyan w-64 h-64 bottom-0 left-1/3 opacity-10" />
       </div>
 
+      {/* MOBILE SIDEBAR OVERLAY */}
+      <AnimatePresence>
+        {showMobileMenu && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            onClick={() => setShowMobileMenu(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] md:hidden" 
+          />
+        )}
+      </AnimatePresence>
+
       {/* SIDEBAR */}
-      <div className="w-72 flex flex-col glass-sidebar z-10 relative">
+      <div className={`
+        fixed md:relative inset-y-0 left-0 w-72 flex flex-col glass-sidebar z-[70] transition-transform duration-300 transform
+        ${showMobileMenu ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
         <div className="p-8">
-          <div className="flex items-center space-x-3 mb-10">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-lg font-black text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]">
-              <Hexagon className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between mb-10">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-lg font-black text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]">
+                <Hexagon className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xl font-black tracking-tighter text-white">CETS</span>
             </div>
-            <span className="text-xl font-black tracking-tighter text-white">CETS</span>
+            <button onClick={() => setShowMobileMenu(false)} className="p-2 bg-white/[0.06] rounded-xl md:hidden text-slate-400">
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           <p className="text-[10px] font-bold text-slate-500 tracking-[0.2em] uppercase mb-4">Main Menu</p>
@@ -852,11 +932,11 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
               { id: 'ledger', icon: ShieldCheck, label: 'Verified Employment Details' },
               { id: 'noticeboard', icon: Briefcase, label: 'Job Search' },
               { id: 'notifications', icon: Bell, label: 'Notifications' },
-              //{ id: 'security', icon: KeyRound, label: 'Security' },
             ].map((item) => (
               <button key={item.id} onClick={() => {
                 setActiveTab(item.id);
                 if (item.id === 'notifications') markNotificationsRead();
+                setShowMobileMenu(false);
               }} className={`w-full flex items-center p-3 rounded-xl font-medium transition-all duration-200 ${activeTab === item.id ? 'sidebar-tab-active' : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-300'}`}>
                 <item.icon className={`mr-3 w-5 h-5 ${activeTab === item.id ? 'text-indigo-400' : 'text-slate-600'}`} /> {item.label}
                 {item.id === 'notifications' && unreadCount > 0 && <span className="ml-auto bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full">{unreadCount}</span>}
@@ -875,14 +955,18 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
       <div className="flex-1 flex flex-col h-screen overflow-y-auto relative z-10">
 
         {/* HEADER (Matched with Employer Dashboard for consistent spaciousness) */}
-        <header className="h-28 px-10 flex items-center justify-between glass-header sticky top-0 z-50 transition-all">
-          <div className="flex flex-col">
-            <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
-              <User className="w-5 h-5 text-indigo-400" />
-              Welcome back, <span className="text-indigo-400">{user?.name || 'Professional'}</span>
-            </h1>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Professional Ecosystem • Workforce Ledger</p>
-            <div className="flex items-center gap-3 mt-1.5">
+        <header className="h-28 px-4 md:px-10 flex items-center justify-between glass-header sticky top-0 z-50 transition-all">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setShowMobileMenu(true)} className="p-3 bg-white/[0.06] rounded-2xl md:hidden text-indigo-400 hover:bg-indigo-500/10 transition-all border border-white/[0.08]">
+              <Menu className="w-6 h-6" />
+            </button>
+            <div className="flex flex-col">
+              <h1 className="text-lg md:text-xl font-black tracking-tight text-white flex items-center gap-2">
+                <User className="hidden sm:inline w-5 h-5 text-indigo-400" />
+                Welcome back, <span className="text-indigo-400 truncate max-w-[120px] sm:max-w-none">{user?.name || 'Professional'}</span>
+              </h1>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 hidden sm:block">Professional Ecosystem • Workforce Ledger</p>
+              <div className="flex items-center gap-2 md:gap-3 mt-1.5 overflow-x-auto no-scrollbar">
               <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]">
                 <ShieldCheck className="w-2.5 h-2.5 text-emerald-400" />
                 <span className="text-[8px] font-black uppercase tracking-tighter text-emerald-400/80">Secured by Blockchain</span>
@@ -893,8 +977,9 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center space-x-6">
+        <div className="flex items-center space-x-6">
             {/* NOTIFICATION BELL & DROPDOWN */}
             <div className="relative" ref={notificationDropdownRef}>
               <button onClick={() => setShowNotificationDropdown(!showNotificationDropdown)} className={`relative p-2.5 rounded-full transition-all bg-white/[0.06] hover:bg-white/[0.1] ${unreadCount > 0 ? 'glow-pulse' : ''}`}>
@@ -1308,7 +1393,13 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent mb-1">{job.job_title}</h3>
-                          <p className="font-medium flex items-center text-slate-400"><Building2 className="w-4 h-4 mr-1 text-indigo-400" /> {job.company_name}</p>
+                          <p 
+                            className="font-medium flex items-center text-slate-400 cursor-pointer hover:text-indigo-400 transition-colors group/company"
+                            onClick={() => viewCompanyDetails(job.company_name)}
+                          >
+                            <Building2 className="w-4 h-4 mr-1 text-indigo-400 group-hover/company:scale-110 transition-transform" /> 
+                            <span className="border-b border-transparent group-hover/company:border-indigo-400/50">{job.company_name}</span>
+                          </p>
                           <div className="flex flex-wrap gap-2 mt-4">
                             <span className="tag-pill">Exp: {job.experience}</span>
                             <span className="tag-pill !bg-purple-500/10 !text-purple-400 !border-purple-500/15">Skills: {job.qualification || 'N/A'}</span>
@@ -1345,38 +1436,101 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
                   <p className="text-sm text-slate-400 leading-relaxed"><strong className="text-emerald-400">Zero-Knowledge mode.</strong> When enabled, employers discovering you via search will NOT see your Name, Email, or past Employer names. They will only see an anonymous profile with your Skills, Match Scores, and Analytics.</p>
                 </div>
 
-                <div className="glass-card p-8">
-                  <h2 className="text-2xl font-bold flex items-center mb-6"><Lock className="mr-3 text-indigo-400" /> Change Password</h2>
-
-                  <form onSubmit={handlePasswordChange} className="space-y-4">
-                    <div>
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Current Password</label>
-                      <input type="password" required value={passwordForm.oldPassword} onChange={e => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })} className="glass-input w-full mt-1" />
+                <div className="glass-card p-6 md:p-10 relative overflow-hidden mt-6">
+                    <div className="absolute top-0 right-0 p-8 opacity-5">
+                        <ShieldAlert className="w-24 h-24 text-rose-500" />
                     </div>
-                    <div>
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">New Password</label>
-                      <input type="password" required value={passwordForm.newPassword} onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} className="glass-input w-full mt-1" />
+                    <div className="relative z-10">
+                        <h2 className="text-xl md:text-2xl font-bold mb-2 flex items-center">
+                            <Lock className="mr-3 text-rose-500 w-6 h-6" /> Update Security Passkey
+                        </h2>
+                        <p className="text-slate-400 text-xs md:text-sm mb-8">Change your account credentials. Follow enterprise security standards for maximum protection.</p>
 
-                      <div className="mt-2">
-                        <div className="strength-bar">
-                          <div className={`strength-bar-fill ${pwdStrength === 100 ? 'bg-gradient-to-r from-emerald-500 to-cyan-400' : 'bg-gradient-to-r from-indigo-500 to-purple-500'}`} style={{ width: `${pwdStrength}%` }}></div>
-                        </div>
-                        <p className="text-[10px] text-slate-500 mt-1">Requires: 8+ chars, 1 uppercase, 1 lowercase, 1 special/number.</p>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex justify-between">
-                        Confirm New Password
-                        {passwordForm.confirmPassword.length > 0 && (
-                          <span className={passwordsMatch ? "text-emerald-400" : "text-rose-400"}>
-                            {passwordsMatch ? "Passwords Match!" : "Passwords Do Not Match"}
-                          </span>
+                        {passwordStatus.msg && (
+                            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className={`p-4 rounded-xl mb-6 flex items-center border ${passwordStatus.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                                {passwordStatus.type === 'success' ? <CheckCircle2 className="w-5 h-5 mr-3 flex-shrink-0" /> : <AlertTriangle className="w-5 h-5 mr-3 flex-shrink-0" />}
+                                <span className="text-xs md:text-sm font-bold">{passwordStatus.msg}</span>
+                            </motion.div>
                         )}
-                      </label>
-                      <input type="password" required value={passwordForm.confirmPassword} onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} className="glass-input w-full mt-1" />
+
+                        <form onSubmit={handlePasswordChange} className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Current Security Passkey</label>
+                                <div className="relative group">
+                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-rose-500 transition-colors" />
+                                    <input 
+                                        required 
+                                        type="password" 
+                                        placeholder="Enter current master key..."
+                                        value={passwordForm.oldPassword} 
+                                        onChange={e => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })} 
+                                        className="glass-input w-full !pl-12 !py-4 font-mono text-rose-400 placeholder:text-slate-700" 
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">New Security Key</label>
+                                <div className="relative group">
+                                    <ShieldAlert className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-rose-500 transition-colors" />
+                                    <input 
+                                        required 
+                                        type="password" 
+                                        placeholder="Define new security sequence..."
+                                        value={passwordForm.newPassword} 
+                                        onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} 
+                                        className={`glass-input w-full !pl-12 !py-4 font-mono text-rose-400 placeholder:text-slate-700 ${pwdStrength === 100 ? 'focus:border-emerald-500/50' : 'focus:border-rose-500/50'}`} 
+                                    />
+                                </div>
+                                
+                                {/* Security Checklist */}
+                                <div className="grid grid-cols-2 gap-2 mt-4">
+                                    {[
+                                        { label: '8+ Characters', met: passwordForm.newPassword.length >= 8 },
+                                        { label: 'Uppercase Unit', met: /[A-Z]/.test(passwordForm.newPassword) },
+                                        { label: 'Lowercase Unit', met: /[a-z]/.test(passwordForm.newPassword) },
+                                        { label: 'Numeric/Symbol', met: /[0-9!@#$%^&*]/.test(passwordForm.newPassword) }
+                                    ].map((req, i) => (
+                                        <div key={i} className={`flex items-center space-x-2 text-[10px] uppercase tracking-wider font-bold ${req.met ? 'text-emerald-400' : 'text-slate-600'}`}>
+                                            {req.met ? <CheckCircle2 className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border border-slate-700"></div>}
+                                            <span>{req.label}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-white/[0.04]">
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Confirm Validation Sequence</label>
+                                    {passwordForm.confirmPassword && (
+                                        <span className={`text-[10px] font-bold uppercase tracking-widest ${passwordsMatch ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                            {passwordsMatch ? 'Match Confirmed' : 'Mismatch Detected'}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="relative group">
+                                    <ShieldCheck className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${passwordForm.confirmPassword ? (passwordsMatch ? 'text-emerald-400' : 'text-rose-400') : 'text-slate-600 group-focus-within:text-rose-500'}`} />
+                                    <input 
+                                        required 
+                                        type="password" 
+                                        placeholder="Re-enter sequence..."
+                                        value={passwordForm.confirmPassword} 
+                                        onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} 
+                                        className={`glass-input w-full !pl-12 !py-4 font-mono text-rose-400 placeholder:text-slate-700 ${passwordForm.confirmPassword ? (passwordsMatch ? 'border-emerald-500/30 focus:border-emerald-500/50' : 'border-rose-500/30 focus:border-rose-500/50') : ''}`} 
+                                    />
+                                </div>
+                            </div>
+
+                            <button 
+                                disabled={pwdStrength < 100 || !passwordsMatch} 
+                                type="submit" 
+                                className="w-full flex justify-center items-center py-4 rounded-xl font-black text-sm transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500 hover:text-white group"
+                            >
+                                <Lock className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                                Execute Security Override
+                            </button>
+                        </form>
                     </div>
-                    <button disabled={pwdStrength < 100 || !passwordsMatch} type="submit" className="btn-premium w-full mt-4 py-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:transform-none disabled:hover:shadow-none">Update Password</button>
-                  </form>
                 </div>
               </motion.div>
             )}
@@ -1587,6 +1741,85 @@ export default function EmployeeDashboard({ user, setUser, onBack }) {
                     <button type="submit" className="btn-premium px-8 py-2.5 rounded-xl text-sm flex items-center shadow-lg shadow-emerald-500/20" style={{ background: 'linear-gradient(135deg, #10b981, #14b8a6)' }}><ShieldCheck className="w-4 h-4 mr-2" /> Submit Answers</button>
                   </div>
                 </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+        
+        {/* COMPANY DETAILS MODAL */}
+        <AnimatePresence>
+          {showCompanyModal && (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-lg">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 30 }} 
+                animate={{ opacity: 1, scale: 1, y: 0 }} 
+                exit={{ opacity: 0, scale: 0.9, y: 30 }} 
+                className="w-full max-w-2xl overflow-hidden rounded-[2rem] glass-card border border-white/[0.1] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5)]"
+              >
+                {isCompanyLoading ? (
+                  <div className="p-20 flex flex-col items-center justify-center space-y-4">
+                    <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
+                    <p className="text-slate-400 font-bold animate-pulse">Decrypting Company Profile...</p>
+                  </div>
+                ) : companyDetails ? (
+                  <div className="relative">
+                    {/* Header/Banner Section */}
+                    <div className="h-32 bg-gradient-to-r from-indigo-600/20 via-purple-600/20 to-indigo-600/20 flex items-center justify-center relative border-b border-white/[0.05]">
+                      <div className="absolute top-6 right-6">
+                        <button onClick={() => setShowCompanyModal(false)} className="p-3 bg-white/[0.06] rounded-2xl hover:bg-rose-500/20 hover:text-rose-400 transition-all border border-white/[0.08] backdrop-blur-md">
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                      <div className="w-20 h-20 rounded-2xl bg-slate-900/80 border border-white/[0.1] flex items-center justify-center shadow-2xl translate-y-8">
+                        <Building2 className="w-10 h-10 text-indigo-400" />
+                      </div>
+                    </div>
+
+                    <div className="p-10 pt-16 space-y-8">
+                      <div className="text-center">
+                        <h2 className="text-4xl font-black bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">{companyDetails.company_name}</h2>
+                        <p className="text-indigo-400 font-bold mt-2 flex items-center justify-center">
+                          <MapPin className="w-4 h-4 mr-2" /> Global Operations
+                          <span className="mx-3 text-slate-700">|</span>
+                          <Calendar className="w-4 h-4 mr-2" /> Est. {companyDetails.establishment_year || 'N/A'}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-center">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Workforce</p>
+                          <p className="text-xl font-black text-indigo-400">{companyDetails.analytics.active_workforce}</p>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-center">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Retention</p>
+                          <p className="text-xl font-black text-emerald-400">{companyDetails.analytics.avg_retention_rate}y</p>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-center">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Trust Index</p>
+                          <p className="text-xl font-black text-rose-400">{companyDetails.analytics.workforce_trust_index}/10</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center">
+                          <Info className="w-4 h-4 mr-2 text-indigo-400" /> About the Company
+                        </h4>
+                        <div className="p-6 rounded-2xl bg-black/20 border border-white/[0.06] leading-relaxed text-slate-300 text-sm italic">
+                          "{companyDetails.about || "This company hasn't provided a public bio yet. They are a verified employer on our secure professional network."}"
+                        </div>
+                      </div>
+
+                      <div className="pt-4 flex justify-center">
+                        <button 
+                          onClick={() => setShowCompanyModal(false)}
+                          className="px-10 py-4 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500 hover:text-white font-black transition-all shadow-lg text-sm"
+                        >
+                          Close Profile
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </motion.div>
             </div>
           )}

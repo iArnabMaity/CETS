@@ -5,7 +5,7 @@ import {
     CheckCircle2, Lock, Cpu, Radar, Database, History, LineChart, Users,
     Clock, Search, ChevronDown, User, Calendar, GraduationCap, Sparkles,
     X, Plus, MessageSquare, Phone, Mail, Building, Award, Trash2,
-    Brain, Zap, Shield, ClipboardCheck, Download
+    Brain, Zap, Shield, ClipboardCheck, Download, Menu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -52,6 +52,7 @@ export default function AdminDashboard({ user, setUser }) {
     const [userToDelete, setUserToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [showMobileMenu, setShowMobileMenu] = useState(false);
 
     // Constants
     const token = localStorage.getItem('token');
@@ -465,11 +466,32 @@ export default function AdminDashboard({ user, setUser }) {
                 <div className="orb orb-cyan w-64 h-64 top-1/2 left-1/4 opacity-10" />
             </div>
 
+            {/* MOBILE SIDEBAR OVERLAY */}
+            <AnimatePresence>
+                {showMobileMenu && (
+                    <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        exit={{ opacity: 0 }} 
+                        onClick={() => setShowMobileMenu(false)}
+                        className="fixed inset-0 bg-[#020408]/80 backdrop-blur-sm z-[60] md:hidden" 
+                    />
+                )}
+            </AnimatePresence>
+
             {/* SIDEBAR (CYBER-THEME) */}
-            <div className="w-72 flex flex-col glass-sidebar z-10 relative" style={{ borderColor: 'rgba(244, 63, 94, 0.1)' }}>
+            <div className={`
+                fixed md:relative inset-y-0 left-0 w-72 flex flex-col glass-sidebar z-[70] transition-transform duration-300 transform
+                ${showMobileMenu ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+            `} style={{ borderColor: 'rgba(244, 63, 94, 0.1)' }}>
                 <div className="p-8">
-                    <div className="w-12 h-12 bg-gradient-to-br from-rose-500 to-red-700 rounded-xl flex items-center justify-center text-xl font-black text-white mb-6 shadow-[0_0_25px_rgba(244,63,94,0.4)]">
-                        <ShieldAlert className="w-6 h-6" />
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="w-12 h-12 bg-gradient-to-br from-rose-500 to-red-700 rounded-xl flex items-center justify-center text-xl font-black text-white shadow-[0_0_25px_rgba(244,63,94,0.4)]">
+                            <ShieldAlert className="w-6 h-6" />
+                        </div>
+                        <button onClick={() => setShowMobileMenu(false)} className="p-2 bg-white/[0.06] rounded-xl md:hidden text-slate-400">
+                            <X className="w-5 h-5" />
+                        </button>
                     </div>
                     <p className="text-[10px] font-bold text-rose-500/80 tracking-[0.2em] uppercase mb-4 flex items-center">
                         <Radar className={`w-3 h-3 mr-2 ${isLive ? 'animate-spin' : ''}`} /> OVERWATCH
@@ -485,7 +507,14 @@ export default function AdminDashboard({ user, setUser }) {
                             { id: 'network', icon: Server, label: 'Network Health' },
                             { id: 'security', icon: Lock, label: 'Security Settings' },
                         ].map((item) => (
-                            <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center p-3 rounded-xl font-medium transition-all duration-200 ${activeTab === item.id ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-[inset_0_0_15px_rgba(244,63,94,0.1)]' : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-300'}`}>
+                            <button 
+                                key={item.id} 
+                                onClick={() => {
+                                    setActiveTab(item.id);
+                                    setShowMobileMenu(false);
+                                }} 
+                                className={`w-full flex items-center p-3 rounded-xl font-medium transition-all duration-200 ${activeTab === item.id ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-[inset_0_0_15px_rgba(244,63,94,0.1)]' : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-300'}`}
+                            >
                                 <item.icon className={`mr-3 w-5 h-5 ${activeTab === item.id ? 'text-rose-400' : 'text-slate-600'}`} /> {item.label}
                             </button>
                         ))}
@@ -508,11 +537,16 @@ export default function AdminDashboard({ user, setUser }) {
             <div className="flex-1 flex flex-col h-screen overflow-y-auto relative z-10">
 
                 {/* HEADER (Standardized to h-28 and z-50 for consistency) */}
-                <header className="h-28 px-10 flex items-center justify-between glass-header sticky top-0 z-50" style={{ borderColor: 'rgba(244, 63, 94, 0.08)' }}>
-                    <h1 className="text-2xl font-bold tracking-tight capitalize flex items-center">
-                        {activeTab.replace('_', ' ')}
-                        {activeTab === 'threats' && isLive && <span className="ml-4 px-2.5 py-1 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10px] font-black rounded uppercase tracking-widest flex items-center animate-pulse"><span className="w-2 h-2 bg-rose-500 rounded-full mr-2"></span> Live Active</span>}
-                    </h1>
+                <header className="h-28 px-4 md:px-10 flex items-center justify-between glass-header sticky top-0 z-50" style={{ borderColor: 'rgba(244, 63, 94, 0.08)' }}>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setShowMobileMenu(true)} className="p-3 bg-white/[0.06] rounded-2xl md:hidden text-rose-400 hover:bg-rose-500/10 transition-all border border-white/[0.08]">
+                            <Menu className="w-6 h-6" />
+                        </button>
+                        <h1 className="text-lg md:text-2xl font-bold tracking-tight capitalize flex items-center">
+                            {activeTab.replace('_', ' ')}
+                            {activeTab === 'threats' && isLive && <span className="ml-4 px-2 py-0.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[8px] font-black rounded uppercase tracking-widest hidden sm:flex items-center animate-pulse"><span className="w-1.5 h-1.5 bg-rose-500 rounded-full mr-1.5"></span> Live</span>}
+                        </h1>
+                    </div>
                     <div className="flex items-center space-x-6">
                         {/* Analytics Export Button */}
                         <button onClick={exportAnalyticsCSV} className="w-10 h-10 bg-white/[0.03] border border-white/[0.06] rounded-xl flex items-center justify-center hover:bg-emerald-500/10 hover:text-emerald-400 border-rose-500/20 transition-all text-slate-400 group relative" title="Export Analytics to Excel (CSV)">
@@ -577,7 +611,7 @@ export default function AdminDashboard({ user, setUser }) {
                             <motion.div key="threats" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-6xl space-y-6">
 
                                 {/* KPI CARDS */}
-                                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                                     {[
                                         { label: 'Total Threats Blocked', value: (safeStats.threats_blocked || 0).toLocaleString(), color: 'rose', icon: ShieldAlert },
                                         { label: 'Volumetric Attacks', value: volumetricCount.toLocaleString(), color: 'orange', icon: Activity },
@@ -1161,61 +1195,109 @@ export default function AdminDashboard({ user, setUser }) {
 
                         {/* TAB 7: SECURITY SETTINGS */}
                         {activeTab === 'security' && (
-                            <motion.div key="security" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-2xl">
-                                <div className="glass-card p-10 relative overflow-hidden">
+                            <motion.div key="security" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 20 }} className="max-w-2xl mx-auto md:mx-0">
+                                <div className="glass-card p-6 md:p-10 relative overflow-hidden">
                                     <div className="absolute top-0 right-0 p-8 opacity-5">
                                         <ShieldAlert className="w-24 h-24 text-rose-500" />
                                     </div>
-                                    <h2 className="text-2xl font-bold mb-2 flex items-center">
-                                        <Lock className="mr-3 text-rose-500" /> Update Admin Passkey
-                                    </h2>
-                                    <p className="text-slate-400 text-sm mb-8">Change your root access credentials. Follow enterprise security standards.</p>
+                                    <div className="relative z-10">
+                                        <h2 className="text-xl md:text-2xl font-bold mb-2 flex items-center">
+                                            <Lock className="mr-3 text-rose-500 w-6 h-6" /> Update Admin Passkey
+                                        </h2>
+                                        <p className="text-slate-400 text-xs md:text-sm mb-8">Change your root access credentials. Follow enterprise security standards for maximum protection.</p>
 
-                                    {passwordStatus.msg && (
-                                        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className={`p-4 rounded-xl mb-6 flex items-center border ${passwordStatus.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
-                                            {passwordStatus.type === 'success' ? <CheckCircle2 className="w-5 h-5 mr-3" /> : <AlertTriangle className="w-5 h-5 mr-3" />}
-                                            <span className="text-sm font-bold">{passwordStatus.msg}</span>
-                                        </motion.div>
-                                    )}
+                                        {passwordStatus.msg && (
+                                            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className={`p-4 rounded-xl mb-6 flex items-center border ${passwordStatus.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                                                {passwordStatus.type === 'success' ? <CheckCircle2 className="w-5 h-5 mr-3 flex-shrink-0" /> : <AlertTriangle className="w-5 h-5 mr-3 flex-shrink-0" />}
+                                                <span className="text-xs md:text-sm font-bold">{passwordStatus.msg}</span>
+                                            </motion.div>
+                                        )}
 
-                                    <form onSubmit={handlePasswordChange} className="space-y-6">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Current Passkey</label>
-                                            <input required type="password" value={passwordForm.current} onChange={e => setPasswordForm({ ...passwordForm, current: e.target.value })} className="glass-input w-full !p-4 !font-mono text-rose-400" />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">New Passkey</label>
-                                            <input required type="password" value={passwordForm.new} onChange={e => setPasswordForm({ ...passwordForm, new: e.target.value })} className={`glass-input w-full !p-4 !font-mono text-rose-400 ${pwdStrength === 100 ? 'focus:border-emerald-500/50' : 'focus:border-rose-500/50'}`} />
-                                            <div className="h-1.5 w-full bg-white/[0.04] rounded-full mt-2 overflow-hidden border border-white/[0.06]">
-                                                <motion.div initial={{ width: 0 }} animate={{ width: `${pwdStrength}%` }} className={`h-full ${pwdStrength <= 25 ? 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.4)]' : pwdStrength <= 50 ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.4)]' : pwdStrength <= 75 ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]'}`} />
+                                        <form onSubmit={handlePasswordChange} className="space-y-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Current Security Passkey</label>
+                                                <div className="relative group">
+                                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-rose-500 transition-colors" />
+                                                    <input 
+                                                        required 
+                                                        type="password" 
+                                                        placeholder="Enter current master key..."
+                                                        value={passwordForm.current} 
+                                                        onChange={e => setPasswordForm({ ...passwordForm, current: e.target.value })} 
+                                                        className="glass-input w-full !pl-12 !py-4 font-mono text-rose-400 placeholder:text-slate-700" 
+                                                    />
+                                                </div>
                                             </div>
-                                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest flex justify-between mt-1">
-                                                <span>Security Score: {pwdStrength}%</span>
-                                                <span className="text-right text-[8px] opacity-70">Requires: 8+ Chars, Match Case, Number/Special</span>
-                                            </p>
-                                        </div>
 
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex justify-between">
-                                                Confirm New Passkey
-                                                {passwordForm.confirm.length > 0 && (
-                                                    <span className={`text-[8px] font-black uppercase tracking-widest ${passwordsMatch ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                        {passwordsMatch ? 'Match Confirmed ✓' : 'Mismatch detected ⚠'}
-                                                    </span>
-                                                )}
-                                            </label>
-                                            <input required type="password" value={passwordForm.confirm} onChange={e => setPasswordForm({ ...passwordForm, confirm: e.target.value })} className={`glass-input w-full !p-4 !font-mono text-rose-400 ${passwordsMatch ? 'focus:border-emerald-500/50' : 'focus:border-rose-500/50'}`} />
-                                        </div>
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">New Administrative Key</label>
+                                                <div className="relative group">
+                                                    <ShieldAlert className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-rose-500 transition-colors" />
+                                                    <input 
+                                                        required 
+                                                        type="password" 
+                                                        placeholder="Define new security sequence..."
+                                                        value={passwordForm.new} 
+                                                        onChange={e => setPasswordForm({ ...passwordForm, new: e.target.value })} 
+                                                        className={`glass-input w-full !pl-12 !py-4 font-mono text-rose-400 placeholder:text-slate-700 ${pwdStrength === 100 ? 'focus:border-emerald-500/50' : 'focus:border-rose-500/50'}`} 
+                                                    />
+                                                </div>
+                                                
+                                                {/* Security Checklist */}
+                                                <div className="grid grid-cols-2 gap-2 mt-4">
+                                                    {[
+                                                        { label: '8+ Characters', met: passwordForm.new.length >= 8 },
+                                                        { label: 'Uppercase Unit', met: /[A-Z]/.test(passwordForm.new) },
+                                                        { label: 'Lowercase Unit', met: /[a-z]/.test(passwordForm.new) },
+                                                        { label: 'Numeric/Symbol', met: /[0-9!@#$%^&*]/.test(passwordForm.new) },
+                                                    ].map((req, i) => (
+                                                        <div key={i} className={`flex items-center space-x-2 p-2 rounded-lg border transition-all ${req.met ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' : 'bg-white/[0.02] border-white/[0.05] text-slate-600'}`}>
+                                                            {req.met ? <CheckCircle2 className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border border-current opacity-30" />}
+                                                            <span className="text-[9px] font-bold uppercase tracking-tight">{req.label}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
 
-                                        <button
-                                            disabled={pwdStrength < 100 || !passwordsMatch}
-                                            type="submit"
-                                            className="w-full py-4 bg-gradient-to-r from-rose-600 to-red-600 text-white font-black rounded-xl uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(244,63,94,0.3)] hover:shadow-[0_0_30px_rgba(244,63,94,0.5)] transition-all flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed disabled:grayscale"
-                                        >
-                                            <ShieldAlert className="w-5 h-5 mr-3" /> Commit Changes
-                                        </button>
-                                    </form>
+                                                <div className="h-1.5 w-full bg-white/[0.04] rounded-full mt-4 overflow-hidden border border-white/[0.06]">
+                                                    <motion.div initial={{ width: 0 }} animate={{ width: `${pwdStrength}%` }} className={`h-full ${pwdStrength <= 25 ? 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.4)]' : pwdStrength <= 50 ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.4)]' : pwdStrength <= 75 ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.4)]' : 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]'}`} />
+                                                </div>
+                                                <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                                                    <span>Security entropy: {pwdStrength}%</span>
+                                                    <span className={pwdStrength === 100 ? 'text-emerald-400' : ''}>{pwdStrength === 100 ? 'PROTOCOL SECURE' : 'HARDENING REQUIRED'}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex justify-between">
+                                                    Verify New Sequence
+                                                    {passwordForm.confirm.length > 0 && (
+                                                        <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${passwordsMatch ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                                                            {passwordsMatch ? 'Match Confirmed ✓' : 'Mismatch detected ⚠'}
+                                                        </span>
+                                                    )}
+                                                </label>
+                                                <div className="relative group">
+                                                    <ClipboardCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-rose-500 transition-colors" />
+                                                    <input 
+                                                        required 
+                                                        type="password" 
+                                                        placeholder="Re-enter sequence for verification..."
+                                                        value={passwordForm.confirm} 
+                                                        onChange={e => setPasswordForm({ ...passwordForm, confirm: e.target.value })} 
+                                                        className={`glass-input w-full !pl-12 !py-4 font-mono text-rose-400 placeholder:text-slate-700 ${passwordsMatch ? 'focus:border-emerald-500/50' : 'focus:border-rose-500/50'}`} 
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                disabled={pwdStrength < 100 || !passwordsMatch}
+                                                type="submit"
+                                                className="w-full py-4 bg-gradient-to-r from-rose-600 to-red-600 text-white font-black rounded-xl uppercase tracking-[0.2em] shadow-[0_0_30px_rgba(244,63,94,0.3)] hover:shadow-[0_0_50px_rgba(244,63,94,0.5)] transition-all flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed disabled:grayscale group active:scale-[0.98]"
+                                            >
+                                                <ShieldAlert className="w-5 h-5 mr-3 group-hover:animate-pulse" /> Commit Security Protocol
+                                            </button>
+                                        </form>
+                                    </div>
                                 </div>
                             </motion.div>
                         )}

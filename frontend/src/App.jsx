@@ -18,7 +18,9 @@ const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [currentView, setCurrentView] = useState('landing');
+  const [currentView, setCurrentView] = useState(() => {
+    return sessionStorage.getItem('cets_current_view') || 'landing';
+  });
   const [isInitializing, setIsInitializing] = useState(true);
   const idleTimerRef = useRef(null);
 
@@ -35,6 +37,11 @@ export default function App() {
     }
     setIsInitializing(false);
   }, []);
+
+  // --- View Persistence ---
+  useEffect(() => {
+    sessionStorage.setItem('cets_current_view', currentView);
+  }, [currentView]);
 
   // --- 30-Minute Idle Session Timeout ---
   const resetIdleTimer = useCallback(() => {

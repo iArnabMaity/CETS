@@ -51,7 +51,8 @@ async def invalidate_cache(pattern: str):
 # --- 1. Security & Environment Setup ---
 load_dotenv()
 MONGO_URL = os.getenv("MONGO_URL")
-JWT_SECRET = os.getenv("JWT_SECRET", secrets.token_hex(32))
+# Use a static fallback for development to avoid logging out users on every uvicorn reload
+JWT_SECRET = os.getenv("JWT_SECRET", "cets_super_secret_dev_key_2026_fallback")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 LOGIN_MAX_ATTEMPTS = 5
@@ -135,6 +136,7 @@ async def get_current_user(request: Request) -> dict:
         
     payload = decode_jwt_token(token)
     return {
+        "id": payload.get("sub"), # Fix for admin audit logs looking for 'id'
         "employee_id": payload.get("sub"), # Compatibility with incognito check
         "employer_id": payload.get("sub"),
         "role": payload.get("role"),
@@ -678,7 +680,27 @@ async def login_user(request: Request, response: Response, creds: UserLogin):
         mouse_distance=creds.mouse_distance, mouse_clicks=creds.mouse_clicks
     )
     
-    if creds.email == "admin@cets.com" and creds.password == "admin123":
+    if creds.email == "admin@cets.com":
+        admin_user = await users_collection.find_one({"role": "admin"})
+        if admin_user:
+            if not verify_password(creds.password, admin_user["password"]):
+                raise HTTPException(status_code=401, detail="Invalid Credentials.")
+        else:
+            if creds.password != "admin123":
+                raise HTTPException(status_code=401, detail="Invalid Credentials.")
+            
+            # create initial admin record
+            hashed = get_password_hash("admin123")
+            await users_collection.insert_one({
+                "email": "admin@cets.com",
+                "password": hashed,
+                "role": "admin",
+                "name": "System Admin",
+                "id": "SYS_ADMIN_01",
+                "failed_login_attempts": 0,
+                "locked_until": None
+            })
+            
         token = create_jwt_token("SYS_ADMIN_01", "admin", "System Admin")
         response.set_cookie(
             key="cets_token", value=token,
@@ -1384,6 +1406,25 @@ async def get_employee_retention_score(emp_id: str):
         "academic_fingerprint": profile.get("academic_fingerprint", {"badges": [], "trajectory": []})
     }
 
+@app.get("/api/hr/company_profile/{company_name}", tags=["HR"])
+async def get_company_profile(company_name: str):
+    """Fetch public company profile (About, Analytics) by name."""
+    # Find the company user to get the 'about' text
+    user = await users_collection.find_one({"company_name": {"$regex": f"^{re.escape(company_name)}$", "$options": "i"}, "role": "employer"}, {"_id": 0, "about": 1, "company_name": 1, "establishment_year": 1})
+    
+    # Get analytics
+    analytics = await employer_profiles_collection.find_one({"company_name": {"$regex": f"^{re.escape(company_name)}$", "$options": "i"}}, {"_id": 0})
+    
+    if not user and not analytics:
+        raise HTTPException(status_code=404, detail="Company not found.")
+        
+    return {
+        "company_name": user.get("company_name") if user else company_name,
+        "about": user.get("about", "") if user else "",
+        "establishment_year": user.get("establishment_year", "") if user else "",
+        "analytics": analytics or {"active_workforce": 0, "avg_retention_rate": 0.0, "workforce_trust_index": 0.0}
+    }
+
 @app.get("/api/analytics/employer/{company_name}", tags=["Analytics"])
 async def get_employer_analytics(company_name: str):
     profile = await employer_profiles_collection.find_one({"company_name": {"$regex": f"^{re.escape(company_name)}$", "$options": "i"}})
@@ -1786,7 +1827,20 @@ async def get_employer_requests(employer_id: str, page: int = Query(1, ge=1), li
         total = await pending_requests_collection.count_documents(query)
         cursor = pending_requests_collection.find(query, {"_id": 0}).skip((page - 1) * limit).limit(limit)
         requests = await cursor.to_list(length=limit)
-        return {"requests": requests, "total": total, "page": page, "limit": limit}
+        
+        # Enrich each request with basic profile info for Candidate CRM
+        enriched_requests = []
+        for req in requests:
+            emp_id = req.get("employee_id")
+            if emp_id:
+                prof = await db["professionals"].find_one({"employee_id": emp_id}, {"_id": 0, "about": 1, "experience": 1, "behavioral_trust_score": 1})
+                if prof:
+                    req["candidate_about"] = prof.get("about", "")
+                    req["verified_jobs_count"] = len([exp for exp in prof.get("experience", []) if exp.get("is_verified")])
+                    req["behavioral_trust_score"] = prof.get("behavioral_trust_score", 0.0)
+            enriched_requests.append(req)
+
+        return {"requests": enriched_requests, "total": total, "page": page, "limit": limit}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1933,11 +1987,12 @@ async def get_active_sessions():
     }
 
 @app.get("/api/admin/attack_ledger", tags=["Admin"])
-async def get_attack_ledger(skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200)):
+async def get_attack_ledger(skip: int = Query(0, ge=0), limit: int = Query(50, ge=1)):
     """Full historical attack ledger with pagination with efficiency analytics."""
     total_defended = await threat_logs_collection.count_documents({})
+    # No limit on maximum limit to allow for massive CSV exports from the UI
     cursor = threat_logs_collection.find({}, {"_id": 0}).sort("timestamp_utc", -1).skip(skip).limit(limit)
-    logs = await cursor.to_list(length=limit)
+    logs = await cursor.to_list(length=None if limit > 1000 else limit)
     
     # Compute summary analytics
     volumetric = sum(1 for l in logs if l.get("type") == "Volumetric Attack")
@@ -1951,9 +2006,11 @@ async def get_attack_ledger(skip: int = Query(0, ge=0), limit: int = Query(50, g
     efficiency = round((total_defended / total_attempts * 100), 1) if total_attempts > 0 else 100.0
     
     return {
+        "logs": logs,
+        "total": total_defended,
         "total_records": total_defended,
-        "showing": len(logs),
         "skip": skip,
+        "limit": limit,
         "summary": {
             "volumetric_attacks": volumetric,
             "intrusion_attempts": intrusion,
@@ -1961,8 +2018,7 @@ async def get_attack_ledger(skip: int = Query(0, ge=0), limit: int = Query(50, g
             "total_attempts": total_attempts,
             "defended_count": total_defended,
             "efficiency": efficiency
-        },
-        "logs": logs
+        }
     }
 
 @app.get("/api/admin/dashboard_summary", tags=["Admin"])
@@ -2053,33 +2109,6 @@ async def get_paginated_user_registry(
         print(f"❌ Registry Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Registry failure: {str(e)}")
 
-@app.get("/api/admin/attack_ledger", tags=["Admin"])
-async def get_attack_ledger(page: int = Query(1, ge=1), limit: int = Query(30, ge=1, le=100)):
-    """Paginated historical attack ledger with summary metrics."""
-    try:
-        total_defended = await threat_logs_collection.count_documents({})
-        cursor = threat_logs_collection.find({}, {"_id": 0}).sort("timestamp_utc", -1).skip((page - 1) * limit).limit(limit)
-        logs = await cursor.to_list(length=limit)
-        
-        missed_attacks = int(total_defended * 0.013) if total_defended > 0 else 0
-        total_attempts = total_defended + missed_attacks
-        efficiency = round((total_defended / total_attempts * 100), 1) if total_attempts > 0 else 100.0
-        
-        return {
-            "logs": logs,
-            "total": total_defended,
-            "total_records": total_defended,
-            "page": page,
-            "limit": limit,
-            "summary": {
-                "defended_count": total_defended,
-                "missed_count": missed_attacks,
-                "total_attempts": total_attempts,
-                "efficiency": efficiency
-            }
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/anomalies", tags=["Admin"])
 async def get_admin_anomalies(page: int = Query(1, ge=1), limit: int = Query(30, ge=1, le=100), admin: dict = Depends(get_current_user)):

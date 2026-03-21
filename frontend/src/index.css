@@ -751,3 +751,21 @@ input:-webkit-autofill:focus {
 .iti__dial-code {
   opacity: 0.6;
 }
+
+@media (max-width: 768px) {
+  .glass-card {
+    padding: 1.25rem !important;
+    border-radius: 1.25rem;
+  }
+  .stat-card {
+    padding: 1rem !important;
+  }
+  .btn-premium {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.8125rem;
+  }
+  body {
+    width: 100%;
+    overflow-x: hidden;
+  }
+}
