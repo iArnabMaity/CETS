@@ -1,16 +1,19 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 
-// Import all your existing, functioning components
+// Import lightweight components eagerly
 import LandingPage from './components/LandingPage';
 import RoleSelectionPage from './components/RoleSelectionPage';
-import EmployeeAuthPage from './components/EmployeeAuthPage';
-import EmployerAuthPage from './components/EmployerAuthPage';
-import AdminAuthPage from './components/AdminAuthPage';
-import EmployeeDashboard from './components/EmployeeDashboard';
-import EmployerDashboard from './components/EmployerDashboard';
-import AdminDashboard from './components/AdminDashboard';
 import ParticleBackground from './components/ParticleBackground';
 import BrightnessController from './components/BrightnessController';
+
+// Lazy load heavy dashboard and auth components
+const EmployeeAuthPage = lazy(() => import('./components/EmployeeAuthPage'));
+const EmployerAuthPage = lazy(() => import('./components/EmployerAuthPage'));
+const AdminAuthPage = lazy(() => import('./components/AdminAuthPage'));
+const EmployeeDashboard = lazy(() => import('./components/EmployeeDashboard'));
+const EmployerDashboard = lazy(() => import('./components/EmployerDashboard'));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+
 import { motion, AnimatePresence } from 'framer-motion';
 import Swal from 'sweetalert2';
 
@@ -185,7 +188,13 @@ export default function App() {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
           >
-            {renderView()}
+            <Suspense fallback={
+              <div className="flex h-screen items-center justify-center bg-[#020817]">
+                <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            }>
+              {renderView()}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>
