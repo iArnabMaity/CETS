@@ -18,6 +18,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code
 COPY . .
 
+# Create a non-root user and switch to it
+RUN useradd --create-home --shell /bin/bash appuser
+USER appuser
+
 # Expose the API port
 EXPOSE 8000
 
