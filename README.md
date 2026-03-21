@@ -12,8 +12,6 @@
 ---
 
 ## Project Overview
-CETS (Career Ecosystem Tracking System) is a high-performance HR management ecosystem...
-
 CETS (Career Empowerment & Tracking System) is a high-performance HR management ecosystem natively designed to bridge the trust gap in the modern era. It combines **Conceptual Blockchain-Verified credentials**, **Generative AI strictly built for candidate evaluation**, and a robust **Cognitive AI Firewall** to curate a secure, tamper-proof, and premium recruitment infrastructure.
 
 ---
