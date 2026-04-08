@@ -1042,6 +1042,7 @@ async def profile_update_v2(user_id: str, data: ProfileUpdateV2):
         )
     if data.phone:
         user_updates["phone"] = data.phone # Phone is not limited by default
+        prof_updates["phone"] = data.phone
         
     if user_updates:
         id_field = "employee_id" if user.get("role") == "employee" else "employer_id"
@@ -1987,8 +1988,9 @@ async def get_active_sessions():
     }
 
 @app.get("/api/admin/attack_ledger", tags=["Admin"])
-async def get_attack_ledger(skip: int = Query(0, ge=0), limit: int = Query(50, ge=1)):
+async def get_attack_ledger(page: int = Query(1, ge=1), limit: int = Query(50, ge=1)):
     """Full historical attack ledger with pagination with efficiency analytics."""
+    skip = (page - 1) * limit
     total_defended = await threat_logs_collection.count_documents({})
     # No limit on maximum limit to allow for massive CSV exports from the UI
     cursor = threat_logs_collection.find({}, {"_id": 0}).sort("timestamp_utc", -1).skip(skip).limit(limit)
@@ -2009,7 +2011,7 @@ async def get_attack_ledger(skip: int = Query(0, ge=0), limit: int = Query(50, g
         "logs": logs,
         "total": total_defended,
         "total_records": total_defended,
-        "skip": skip,
+        "page": page,
         "limit": limit,
         "summary": {
             "volumetric_attacks": volumetric,

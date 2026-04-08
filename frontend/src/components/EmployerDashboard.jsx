@@ -682,6 +682,10 @@ export default function EmployerDashboard({ user, setUser }) {
 
         try {
             const endpoint = isRelieve ? `/api/hr/action_relieve/${requestId}?action=${action}` : `/api/hr/action_request/${requestId}?action=${action}`;
+            
+            // Send request to backend
+            await axios.get(`${API_BASE}${endpoint}`, authHeader);
+            
             Swal.fire({ icon: 'success', title: 'Action Confirmed', text: `Success: ${typeText} ${actionText}ed.` });
 
             if (isRelieve && action === 'accept') {
@@ -1145,7 +1149,7 @@ export default function EmployerDashboard({ user, setUser }) {
                                     </div>
                                     <div className="stat-card flex flex-col justify-between bg-gradient-to-br from-rose-500/[0.06] to-transparent" style={{ "--stat-color": "#f43f5e" }}>
                                         <div>
-                                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Workforce Trust Index</p>
+                                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Workforce Reliability Score</p>
                                             <h3 className="text-5xl font-black text-rose-400">{companyAnalytics.workforce_trust_index} <span className="text-xl font-bold text-slate-500">/ 10</span></h3>
                                         </div>
                                         <div className="w-full h-1.5 bg-white/[0.04] rounded-full mt-4 overflow-hidden border border-white/[0.06]">
@@ -1155,7 +1159,7 @@ export default function EmployerDashboard({ user, setUser }) {
                                                 className="h-full bg-gradient-to-r from-rose-500 to-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.4)]"
                                             />
                                         </div>
-                                        <p className="text-[10px] mt-2 font-medium text-slate-400 uppercase tracking-tighter">Verified Aggregate Performance</p>
+                                        <p className="text-[10px] mt-2 font-medium text-slate-400 uppercase tracking-tighter">Based on your workforce evaluations</p>
                                     </div>
                                 </div>
 

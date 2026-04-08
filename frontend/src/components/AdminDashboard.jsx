@@ -942,8 +942,9 @@ export default function AdminDashboard({ user, setUser }) {
                                                         <td className="px-6 py-4 text-right">
                                                             <button
                                                                 onClick={() => confirmDelete(u)}
-                                                                className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center ml-auto border border-rose-500/20 shadow-sm"
-                                                                title="Cascading Deletion"
+                                                                disabled={u.role === 'admin'}
+                                                                className={`p-2 rounded-lg flex items-center justify-center ml-auto border shadow-sm transition-all ${u.role === 'admin' ? 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed' : 'bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white border-rose-500/20'}`}
+                                                                title={u.role === 'admin' ? "System Core User" : "Cascading Deletion"}
                                                             >
                                                                 <Trash2 className="w-4 h-4" />
                                                             </button>
@@ -1001,8 +1002,8 @@ export default function AdminDashboard({ user, setUser }) {
                                                         </td>
                                                         <td className="px-6 py-4">
                                                             <div className="flex flex-col">
-                                                                <span className="font-bold text-slate-200">{a.evaluatee_id || a.user_id}</span>
-                                                                <span className="text-[10px] text-slate-500">{a.name || a.company_name || 'Individual'}</span>
+                                                                <span className="font-bold text-slate-200">{a.type === 'evaluation_anomaly' ? `Target: ${a.evaluatee_id}` : (a.evaluatee_id || a.user_id)}</span>
+                                                                <span className="text-[10px] text-slate-500">{a.type === 'evaluation_anomaly' ? `Evaluator: ${a.company_name || 'Individual'}` : (a.name || a.company_name || 'Individual')}</span>
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4">

@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useRef, useImperativeHandle, useEffect } from 'react';
 import IntlTelInput from 'intl-tel-input/react';
 import 'intl-tel-input/build/css/intlTelInput.min.css';
 import { Phone } from 'lucide-react';
@@ -14,11 +14,30 @@ import { Phone } from 'lucide-react';
  * @param {ref} ref - React forwardRef for accessing the IntlTelInput instance (e.g., for isValidNumber())
  */
 const PhoneInput = forwardRef(({ value, onChange, onBlur, label, className = "", placeholder = "Mobile Number" }, ref) => {
+  const internalRef = useRef(null);
+
+  useImperativeHandle(ref, () => {
+    return internalRef.current;
+  });
+
+  useEffect(() => {
+    if (internalRef.current) {
+      if (typeof internalRef.current.getInstance === 'function') {
+        const instance = internalRef.current.getInstance();
+        if (instance && value !== undefined && value !== null) {
+          if (instance.getNumber() !== value) {
+            instance.setNumber(value);
+          }
+        }
+      }
+    }
+  }, [value]);
+
   return (
     <div className="relative group w-full">
       <div className="relative">
         <IntlTelInput
-          ref={ref}
+          ref={internalRef}
           initialValue={value}
           onChangeNumber={onChange}
           initOptions={{
